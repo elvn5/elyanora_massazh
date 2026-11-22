@@ -1,0 +1,14 @@
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+.angular/
+coverage/
+*.log
+*.test
+.DS_Store
+.tmp/
+backend/server
+
+telegram.env*

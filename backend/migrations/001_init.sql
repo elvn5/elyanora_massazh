@@ -1,0 +1,17 @@
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+CREATE TABLE IF NOT EXISTS schema_migrations(version int PRIMARY KEY);
+CREATE TABLE specialists(id bigserial PRIMARY KEY, name text NOT NULL, bio text NOT NULL DEFAULT '', active boolean NOT NULL DEFAULT true);
+CREATE TABLE services(id bigserial PRIMARY KEY, name text NOT NULL, description text NOT NULL DEFAULT '', prices jsonb NOT NULL, active boolean NOT NULL DEFAULT true);
+CREATE TABLE extras(id bigserial PRIMARY KEY, name text NOT NULL, price int NOT NULL CHECK(price>=0), minutes int NOT NULL DEFAULT 0 CHECK(minutes BETWEEN 0 AND 60), active boolean NOT NULL DEFAULT true);
+CREATE TABLE shifts(id bigserial PRIMARY KEY, specialist_id bigint NOT NULL REFERENCES specialists(id), starts_at timestamptz NOT NULL, ends_at timestamptz NOT NULL CHECK(ends_at>starts_at), EXCLUDE USING gist(specialist_id WITH =, tstzrange(starts_at,ends_at,'[)') WITH &&));
+CREATE TABLE bookings(id bigserial PRIMARY KEY, token text UNIQUE NOT NULL, specialist_id bigint NOT NULL REFERENCES specialists(id), service_id bigint NOT NULL REFERENCES services(id), service_name text NOT NULL, duration int NOT NULL CHECK(duration IN (60,90,120)), extras jsonb NOT NULL DEFAULT '[]', total int NOT NULL CHECK(total>=0), starts_at timestamptz NOT NULL, ends_at timestamptz NOT NULL CHECK(ends_at>starts_at), name text NOT NULL, email text NOT NULL, phone text NOT NULL, status text NOT NULL DEFAULT 'confirmed' CHECK(status IN ('confirmed','cancelled','completed','no_show')), version int NOT NULL DEFAULT 1, telegram_chat bigint, created_at timestamptz NOT NULL DEFAULT now(), EXCLUDE USING gist(specialist_id WITH =, tstzrange(starts_at,ends_at,'[)') WITH &&) WHERE (status <> 'cancelled'));
+CREATE INDEX bookings_start ON bookings(starts_at);
+CREATE TABLE jobs(id bigserial PRIMARY KEY, booking_id bigint NOT NULL REFERENCES bookings(id), version int NOT NULL, kind text NOT NULL, channel text NOT NULL, due_at timestamptz NOT NULL, attempts int NOT NULL DEFAULT 0, sent_at timestamptz, last_error text, UNIQUE(booking_id,version,kind,channel));
+CREATE INDEX jobs_pending ON jobs(due_at) WHERE sent_at IS NULL;
+CREATE TABLE sessions(token_hash text PRIMARY KEY, expires_at timestamptz NOT NULL);
+CREATE TABLE bot_state(id int PRIMARY KEY CHECK(id=1), offset_id bigint NOT NULL DEFAULT 0);
+INSERT INTO bot_state(id) VALUES(1);
+INSERT INTO specialists(name,bio) VALUES ('Анна Смирнова','Классический и расслабляющий массаж · 8 лет практики'),('Михаил Волков','Спортивный массаж и восстановление · 6 лет практики'),('Елена Ким','Бережный уход и глубокое расслабление · 10 лет практики');
+INSERT INTO services(name,description,prices) VALUES ('Классический массаж','Восстановление тонуса, лёгкость в теле и забота о себе.', '{"60":2500,"90":3500,"120":4500}'),('Расслабляющий массаж','Мягкие техники, которые помогают отпустить напряжение.', '{"60":2800,"90":3800,"120":4800}'),('Спортивный массаж','Глубокая работа с мышцами после физических нагрузок.', '{"60":3000,"90":4200,"120":5400}');
+INSERT INTO extras(name,price,minutes) VALUES ('Ароматерапия',400,0),('Массаж головы',600,15),('Тёплые камни',800,15);
+INSERT INTO schema_migrations VALUES(1);

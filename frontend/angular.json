@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "projects": {
+    "web": {
+      "projectType": "application",
+      "root": "",
+      "sourceRoot": "src",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "src/main.ts",
+            "tsConfig": "tsconfig.json",
+            "index": "src/index.html",
+            "styles": [
+              "src/styles.css"
+            ],
+            "outputPath": "dist/web",
+            "budgets": [
+              {
+                "type": "initial",
+                "maximumWarning": "650kB",
+                "maximumError": "1MB"
+              }
+            ],
+            "outputHashing": "all"
+          }
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "options": {
+            "buildTarget": "web:build"
+          }
+        }
+      }
+    }
+  }
+}
