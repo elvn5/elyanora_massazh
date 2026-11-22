@@ -35,18 +35,23 @@ jobs:
           context: .
           file: backend/Dockerfile
           push: true
+          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
           tags: ghcr.io/${{ steps.names.outputs.owner }}/masajka-api:${{ github.event.workflow_run.head_sha }}
       - uses: docker/build-push-action@v6
         with:
           context: .
           file: frontend/Dockerfile
           push: true
+          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
           tags: ghcr.io/${{ steps.names.outputs.owner }}/masajka-web:${{ github.event.workflow_run.head_sha }}
   deploy:
     needs: publish
     if: vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     environment: production
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -67,14 +72,15 @@ jobs:
           IMAGE_OWNER: ${{ needs.publish.outputs.owner }}
           IMAGE_SHA: ${{ github.event.workflow_run.head_sha }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          GHCR_READ_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [[ ! "$TELEGRAM_BOT_TOKEN" =~ ^[0-9]+:[A-Za-z0-9_-]+$ ]]; then
             echo 'Set the TELEGRAM_BOT_TOKEN GitHub Secret before deployment.' >&2
             exit 1
           fi
-          printf 'TELEGRAM_BOT_TOKEN=%s\n' "$TELEGRAM_BOT_TOKEN" | ssh "${DEPLOY_USER}@${DEPLOY_HOST}" 'set -eu; umask 077; cat > /opt/masajka/telegram.env.next; mv /opt/masajka/telegram.env.next /opt/masajka/telegram.env'
-          scp compose.yaml "${DEPLOY_USER}@${DEPLOY_HOST}:/opt/masajka/compose.yaml.next"
-          ssh "${DEPLOY_USER}@${DEPLOY_HOST}" bash -s -- "$IMAGE_OWNER" "$IMAGE_SHA" < deploy/release.sh
+          printf '%s\n' "$TELEGRAM_BOT_TOKEN" | ssh -T "${DEPLOY_USER}@${DEPLOY_HOST}" token
+          ssh -T "${DEPLOY_USER}@${DEPLOY_HOST}" compose < compose.yaml
+          printf '%s\n' "$GHCR_READ_TOKEN" | ssh -T "${DEPLOY_USER}@${DEPLOY_HOST}" "deploy $IMAGE_SHA"
       - name: Remove key
         if: always()
         run: rm -f ~/.ssh/id_ed25519
