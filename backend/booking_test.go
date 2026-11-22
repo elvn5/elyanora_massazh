@@ -67,7 +67,7 @@ func fixture(t *testing.T) (*app, *httptest.Server, time.Time) {
 		t.Fatal(e)
 	}
 	pw, _ := bcrypt.GenerateFromPassword([]byte("a-test-password"), bcrypt.MinCost)
-	a := &app{db: db, tz: tz, base: "http://localhost:4200", password: pw, limiter: &rateLimiter{buckets: map[string]bucket{}}}
+	a := &app{db: db, tz: tz, base: "http://localhost:4200", password: pw, limiter: &rateLimiter{buckets: map[string]bucket{}}, bookingTopic: -1003761508539, bookingThread: 2}
 	srv := httptest.NewServer(a.routes())
 	testAdminCookies.Store(srv, loginAdmin(t, srv))
 	t.Cleanup(func() { testAdminCookies.Delete(srv); srv.Close(); db.Close() })

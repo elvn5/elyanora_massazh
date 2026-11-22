@@ -60,6 +60,7 @@ type botSession struct {
 	Total          int       `json:"total"`
 	Minutes        int       `json:"minutes"`
 	Summary        string    `json:"summary"`
+	Catalog        bool      `json:"catalog"`
 }
 
 func button(text, data string) []botButton { return []botButton{{text, data}} }
@@ -190,6 +191,8 @@ func (a *app) advanceBot(ctx context.Context, tx pgx.Tx, u telegramUpdate, chat 
 		data = "new"
 	case "Мои записи":
 		data = "mine"
+	case "← Назад":
+		return a.botBack(ctx, tx, chat, s, settings)
 	}
 	switch data {
 	case "menu":
@@ -203,7 +206,7 @@ func (a *app) advanceBot(ctx context.Context, tx pgx.Tx, u telegramUpdate, chat 
 		if !settings.ServicesEnabled {
 			return menuReply("Просмотр каталога сейчас отключён. Для записи нажмите «Записаться».", false), nil
 		}
-		*s = botSession{Step: "catalog"}
+		*s = botSession{Step: "catalog", Catalog: true}
 	case "mine":
 		*s = botSession{Step: "mine"}
 	default:
@@ -240,6 +243,9 @@ func (a *app) advanceBot(ctx context.Context, tx pgx.Tx, u telegramUpdate, chat 
 				return botReply{Text: "Эта кнопка устарела. Используйте последнее сообщение или начните заново.", Buttons: [][]botButton{button("Главное меню", "menu"), button("Мои записи", "mine")}}, nil
 			}
 			action, arg := p[2], p[3]
+			if action == "back" {
+				return a.botBack(ctx, tx, chat, s, settings)
+			}
 			if action == "page" {
 				n, e := strconv.Atoi(arg)
 				if e == nil && n >= 0 && n <= 10000 {
@@ -343,7 +349,7 @@ func (a *app) advanceBot(ctx context.Context, tx pgx.Tx, u telegramUpdate, chat 
 					s.Selection.Name = text
 					s.Step = "phone"
 				} else {
-					return botReply{Text: "Введите имя: от 2 до 100 символов.", Buttons: [][]botButton{button("Главное меню", "menu")}}, nil
+					return botReply{Text: "Введите имя: от 2 до 100 символов.", Buttons: [][]botButton{button("← Назад", s.cb("back", "")), button("Главное меню", "menu")}}, nil
 				}
 			case "phone":
 				phone := text
@@ -577,9 +583,11 @@ func (a *app) renderBotStep(ctx context.Context, tx pgx.Tx, chat int64, s *botSe
 		r.Buttons = append(r.Buttons, button("Выбрать другую услугу / мастера", "new"))
 	case "name":
 		r.Text = "Как к вам обращаться? Напишите имя сообщением."
-		name := ""
-		if u.Callback != nil {
+		name := s.Selection.Name
+		if name == "" && u.Callback != nil {
 			name = u.Callback.From.FirstName
+		} else if name == "" && u.Message != nil {
+			name = u.Message.From.FirstName
 		}
 		if validClientName(name) {
 			r.Buttons = append(r.Buttons, button("Использовать имя: "+shortened(name, 35), s.cb("name", "")))
@@ -647,8 +655,73 @@ func (a *app) renderBotStep(ctx context.Context, tx pgx.Tx, chat int64, s *botSe
 	default:
 		return menuReply("Выберите действие:", true), nil
 	}
+	if s.Step != "" {
+		r.Buttons = append(r.Buttons, button("← Назад", s.cb("back", "")))
+	}
 	r.Buttons = append(r.Buttons, button("Главное меню", "menu"))
 	return r, nil
+}
+
+func (a *app) botBack(ctx context.Context, tx pgx.Tx, chat int64, s *botSession, settings botSettings) (botReply, error) {
+	switch s.Step {
+	case "service", "catalog", "mine":
+		*s = botSession{}
+		return menuReply("Выберите действие.", settings.ServicesEnabled), nil
+	case "duration":
+		if s.Catalog {
+			s.Step = "catalog"
+		} else {
+			s.Step = "service"
+		}
+	case "extras":
+		s.Step = "duration"
+	case "master":
+		s.Step = "extras"
+	case "date":
+		if s.BookingID != 0 {
+			b, err := a.ownedBooking(ctx, tx, chat, s.BookingID, false)
+			if err == nil {
+				*s = botSession{}
+				return a.bookingReply(b), nil
+			}
+			if err != pgx.ErrNoRows {
+				return botReply{}, err
+			}
+			*s = botSession{}
+			return menuReply("Запись больше недоступна.", settings.ServicesEnabled), nil
+		}
+		s.Step = "master"
+	case "time":
+		s.Step = "date"
+		s.Page = 0
+	case "name":
+		s.Step = "time"
+		s.Page = 0
+	case "phone":
+		s.Step = "name"
+	case "review":
+		if s.BookingID != 0 {
+			s.Step = "time"
+		} else {
+			s.Step = "phone"
+		}
+	case "cancel":
+		b, err := a.ownedBooking(ctx, tx, chat, s.BookingID, false)
+		if err == nil {
+			*s = botSession{}
+			return a.bookingReply(b), nil
+		}
+		if err != pgx.ErrNoRows {
+			return botReply{}, err
+		}
+		*s = botSession{}
+		return menuReply("Запись больше недоступна.", settings.ServicesEnabled), nil
+	default:
+		*s = botSession{}
+		return menuReply("Выберите действие.", settings.ServicesEnabled), nil
+	}
+	s.Revision = token()[:12]
+	return a.renderBotStep(ctx, tx, chat, s, telegramUpdate{})
 }
 
 type botInputError string
@@ -728,6 +801,9 @@ func (a *app) confirmBotBooking(ctx context.Context, tx pgx.Tx, chat int64, s *b
 		}
 		if err == nil {
 			err = enqueue(ctx, tx, b, "confirmation")
+		}
+		if err == nil {
+			err = enqueueStaffBooking(ctx, tx, b)
 		}
 	}
 	if err != nil {

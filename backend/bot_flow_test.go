@@ -103,8 +103,8 @@ func TestBotBookingMoveCancelAndReplay(t *testing.T) {
 	if b.TelegramChat == nil || *b.TelegramChat != d.chat {
 		t.Fatal("chat not linked")
 	}
-	if e = a.db.QueryRow(context.Background(), "SELECT count(*) FROM jobs WHERE booking_id=$1", b.ID).Scan(&count); e != nil || count != 3 {
-		t.Fatal("reminders missing", count, e)
+	if e = a.db.QueryRow(context.Background(), "SELECT count(*) FROM jobs WHERE booking_id=$1", b.ID).Scan(&count); e != nil || count != 4 {
+		t.Fatal("notifications missing", count, e)
 	}
 	d.say("/bookings")
 	d.click(start.Format("02.01 15:04"))
@@ -140,8 +140,8 @@ func TestBotBookingMoveCancelAndReplay(t *testing.T) {
 	if e = a.db.QueryRow(context.Background(), "SELECT status FROM bookings WHERE id=$1", b.ID).Scan(&status); e != nil || status != "cancelled" {
 		t.Fatal("cancel failed")
 	}
-	if e = a.db.QueryRow(context.Background(), "SELECT count(*) FROM jobs WHERE booking_id=$1 AND sent_at IS NULL", b.ID).Scan(&count); e != nil || count != 1 {
-		t.Fatal("stale reminders survived cancellation", count, e)
+	if e = a.db.QueryRow(context.Background(), "SELECT count(*) FROM jobs WHERE booking_id=$1 AND sent_at IS NULL", b.ID).Scan(&count); e != nil || count != 2 {
+		t.Fatal("expected cancellation and unsent staff card", count, e)
 	}
 }
 func TestBotConcurrentConfirmationAndStaleButtons(t *testing.T) {
@@ -235,6 +235,75 @@ func TestBotPricesExtrasContactAndHiddenCatalog(t *testing.T) {
 	}
 	d.click("Записаться")
 	d.key("Классический")
+}
+
+func TestBotBackButtonReturnsToEachPreviousStep(t *testing.T) {
+	a, _, start := fixture(t)
+	d := botDriver{t: t, a: a, chat: 1351}
+	d.say("/book")
+	d.click("Классический")
+	d.click("← Назад")
+	d.key("Классический")
+	d.click("Классический")
+	d.click("60 мин")
+	d.click("← Назад")
+	d.key("60 мин")
+	d.click("60 мин")
+	d.click("Продолжить")
+	d.click("← Назад")
+	d.key("Продолжить")
+	d.click("Продолжить")
+	d.click("Анна")
+	d.click("← Назад")
+	d.key("Анна")
+	d.click("Анна")
+	d.click(start.Format("02.01.2006"))
+	d.click("← Назад")
+	d.key(start.Format("02.01.2006"))
+	d.click(start.Format("02.01.2006"))
+	d.click(start.Format("15:04"))
+	d.click("← Назад")
+	d.key(start.Format("15:04"))
+	d.click(start.Format("15:04"))
+	d.click("Использовать имя")
+	d.say("← Назад")
+	d.key("Использовать имя")
+	d.click("Использовать имя")
+	d.say("+996700000000")
+	d.click("← Назад")
+	if !d.r.Contact {
+		t.Fatal("review back did not return to phone")
+	}
+}
+
+func TestNewBookingCardIsDeliveredToConfiguredTopic(t *testing.T) {
+	a, _, start := fixture(t)
+	d := botDriver{t: t, a: a, chat: 1361}
+	d.prepare(start)
+	d.click("Подтвердить")
+	var cards int
+	a.telegramClient = &http.Client{Transport: telegramTransport(func(r *http.Request) (*http.Response, error) {
+		var payload map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatal(err)
+		}
+		if strings.HasSuffix(r.URL.Path, "sendMessage") && payload["chat_id"] == float64(-1003761508539) {
+			if payload["message_thread_id"] != float64(2) {
+				t.Fatalf("wrong topic: %+v", payload)
+			}
+			text, _ := payload["text"].(string)
+			if !strings.Contains(text, "Новая запись") || !strings.Contains(text, "+996700000000") || !strings.Contains(text, "Классический массаж") {
+				t.Fatalf("incomplete topic card: %q", text)
+			}
+			cards++
+		}
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"ok":true}`)), Header: make(http.Header)}, nil
+	})}
+	for a.deliverOne(context.Background()) {
+	}
+	if cards != 1 {
+		t.Fatalf("want one topic card, got %d", cards)
+	}
 }
 func TestPublicClientAPIsClosed(t *testing.T) {
 	_, srv, _ := fixture(t)

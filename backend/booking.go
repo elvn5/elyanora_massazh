@@ -341,7 +341,7 @@ func (a *app) change(w http.ResponseWriter, r *http.Request, reschedule bool) {
 	respond(w, 200, b)
 }
 func enqueue(ctx context.Context, tx pgx.Tx, b booking, kind string) error {
-	_, e := tx.Exec(ctx, "DELETE FROM jobs WHERE booking_id=$1 AND sent_at IS NULL", b.ID)
+	_, e := tx.Exec(ctx, "DELETE FROM jobs WHERE booking_id=$1 AND sent_at IS NULL AND kind<>'staff_booking'", b.ID)
 	if e != nil {
 		return e
 	}
@@ -365,4 +365,9 @@ func enqueue(ctx context.Context, tx pgx.Tx, b booking, kind string) error {
 		}
 	}
 	return nil
+}
+
+func enqueueStaffBooking(ctx context.Context, tx pgx.Tx, b booking) error {
+	_, err := tx.Exec(ctx, "INSERT INTO jobs(booking_id,version,kind,channel,due_at) VALUES($1,$2,'staff_booking','telegram_topic',now()) ON CONFLICT(booking_id,version,kind,channel) DO NOTHING", b.ID, b.Version)
+	return err
 }

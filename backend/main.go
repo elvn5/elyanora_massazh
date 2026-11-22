@@ -40,6 +40,8 @@ type app struct {
 	secure         bool
 	password       []byte
 	limiter        *rateLimiter
+	bookingTopic   int64
+	bookingThread  int
 }
 type rateLimiter struct {
 	sync.Mutex
@@ -185,6 +187,18 @@ func migrate(ctx context.Context, db *pgxpool.Pool) error {
 			return e
 		}
 	}
+	if e = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version=6)").Scan(&applied); e != nil {
+		return e
+	}
+	if !applied {
+		sql, err := migrations.ReadFile("migrations/006_booking_topic_jobs.sql")
+		if err != nil {
+			return err
+		}
+		if _, e = tx.Exec(ctx, string(sql)); e != nil {
+			return e
+		}
+	}
 
 	return tx.Commit(ctx)
 }
@@ -231,7 +245,12 @@ func main() {
 	if e != nil || u.Host == "" || u.Path != "" || u.RawQuery != "" || u.Fragment != "" || u.User != nil || (u.Scheme != "http" && u.Scheme != "https") {
 		panic("invalid PUBLIC_URL")
 	}
-	a := &app{db: db, tz: tz, base: base, secure: u.Scheme == "https", password: []byte(password), limiter: &rateLimiter{buckets: map[string]bucket{}}}
+	topicChat, topicErr := strconv.ParseInt(env("TELEGRAM_BOOKINGS_CHAT_ID", "-1003761508539"), 10, 64)
+	topicThread, threadErr := strconv.Atoi(env("TELEGRAM_BOOKINGS_THREAD_ID", "2"))
+	if topicErr != nil || topicChat >= 0 || threadErr != nil || topicThread < 1 {
+		panic("invalid Telegram bookings topic configuration")
+	}
+	a := &app{db: db, tz: tz, base: base, secure: u.Scheme == "https", password: []byte(password), limiter: &rateLimiter{buckets: map[string]bucket{}}, bookingTopic: topicChat, bookingThread: topicThread}
 	srv := &http.Server{Addr: env("HTTP_ADDR", ":8080"), Handler: a.routes(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}
 	go a.worker(ctx)
 	if os.Getenv("TELEGRAM_BOT_TOKEN") != "" {

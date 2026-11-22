@@ -78,6 +78,8 @@ func (a *app) deliverOne(ctx context.Context) bool {
 			} else {
 				sendErr = fmt.Errorf("telegram not linked")
 			}
+		} else if ch == "telegram_topic" && kind == "staff_booking" {
+			sendErr = a.sendBookingTopic(ctx, b)
 		} else {
 			sendErr = fmt.Errorf("unsupported notification channel")
 		}
@@ -124,6 +126,27 @@ func (a *app) sendTelegram(ctx context.Context, chat int64, text string) error {
 		return fmt.Errorf("telegram rejected message")
 	}
 	return e
+}
+
+func (a *app) sendBookingTopic(ctx context.Context, b booking) error {
+	text := fmt.Sprintf("🆕 Новая запись №%d\n\nКлиент: %s\nТелефон: %s\nУслуга: %s\nМастер: %s\nДата и время: %s (%s)\nПродолжительность: %d мин\nСтоимость: %d %s", b.ID, b.Name, b.Phone, b.Service, b.Specialist, b.StartsAt.In(a.tz).Format("02.01.2006 в 15:04"), a.tz, int(b.EndsAt.Sub(b.StartsAt).Minutes()), b.Total, env("CURRENCY", "KGS"))
+	if len(b.Extras) > 0 {
+		text += "\nДополнения: "
+		for i, extra := range b.Extras {
+			if i > 0 {
+				text += ", "
+			}
+			text += extra.Name
+		}
+	}
+	var result struct {
+		OK bool `json:"ok"`
+	}
+	err := a.telegram(ctx, "sendMessage", map[string]any{"chat_id": a.bookingTopic, "message_thread_id": a.bookingThread, "text": text, "disable_web_page_preview": true}, &result)
+	if err == nil && !result.OK {
+		return fmt.Errorf("telegram rejected booking topic card")
+	}
+	return err
 }
 func (a *app) bot(ctx context.Context) {
 	for ctx.Err() == nil {
@@ -313,7 +336,7 @@ func (a *app) sendBotReply(ctx context.Context, chat int64, r botReply) error {
 		payload := map[string]any{"chat_id": chat, "text": text, "disable_web_page_preview": true}
 		if i == len(chunks)-1 {
 			if r.Contact {
-				payload["reply_markup"] = map[string]any{"keyboard": [][]map[string]any{{{"text": "Отправить мой телефон", "request_contact": true}}, {{"text": "Главное меню"}}}, "resize_keyboard": true, "one_time_keyboard": true}
+				payload["reply_markup"] = map[string]any{"keyboard": [][]map[string]any{{{"text": "Отправить мой телефон", "request_contact": true}}, {{"text": "← Назад"}}, {{"text": "Главное меню"}}}, "resize_keyboard": true, "one_time_keyboard": true}
 			} else if len(r.Buttons) > 0 {
 				payload["reply_markup"] = map[string]any{"inline_keyboard": r.Buttons}
 			}

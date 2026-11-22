@@ -36,6 +36,8 @@ services:
       SALON_TIMEZONE: ${SALON_TIMEZONE:-Asia/Bishkek}
       CURRENCY: ${CURRENCY:-KGS}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOOKINGS_CHAT_ID: ${TELEGRAM_BOOKINGS_CHAT_ID:--1003761508539}
+      TELEGRAM_BOOKINGS_THREAD_ID: ${TELEGRAM_BOOKINGS_THREAD_ID:-2}
     depends_on:
       db: {condition: service_healthy}
     healthcheck:
