@@ -1,0 +1,28 @@
+/* Shared semantic palette for booking, visit management and the admin panel. */
+@theme static {
+  --font-sans: 'Avenir Next', 'Segoe UI', Arial, sans-serif;
+  --color-brand: #244f46;
+  --color-brand-hover: #173c34;
+  --color-accent: #52745e;
+  --color-canvas: #f7f9f6;
+  --color-surface: #ffffff;
+  --color-surface-soft: #f0f5ef;
+  --color-surface-tint: #e5eee4;
+  --color-ink: #243b35;
+  --color-muted: #5c6e65;
+  --color-border: #d2ddd4;
+  --color-border-strong: #81998a;
+  --color-focus: #926b25;
+  --color-success: #315d43;
+  --color-success-soft: #e5f1e7;
+  --color-danger: #9b4038;
+  --color-danger-soft: #fff0ec;
+  --color-danger-border: #d8a49a;
+  --color-neutral-soft: #edf0ed;
+  --color-neutral-ink: #5a665f;
+  --color-art-light: #d5dfca;
+  --color-art-mid: #9db199;
+  --color-art-dark: #5c7b63;
+  --color-shadow: #244f4614;
+  --color-shadow-inset: #173c3424;
+}
