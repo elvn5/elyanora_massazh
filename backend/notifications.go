@@ -37,6 +37,10 @@ func (a *app) deliverOne(ctx context.Context) bool {
 		return false
 	}
 	defer tx.Rollback(ctx)
+	settings, e := readBotSettings(ctx, tx, true)
+	if e != nil {
+		return false
+	}
 	b, e := scanBooking(tx.QueryRow(ctx, bookingSelect+`WHERE EXISTS(SELECT 1 FROM jobs j WHERE j.booking_id=b.id AND j.sent_at IS NULL AND j.due_at<=now() AND j.attempts<12) ORDER BY b.id LIMIT 1 FOR UPDATE OF b SKIP LOCKED`))
 	if e != nil {
 		return false
@@ -48,7 +52,7 @@ func (a *app) deliverOne(ctx context.Context) bool {
 	if e != nil {
 		return false
 	}
-	if b.Version != version || (strings.HasPrefix(kind, "reminder") && (b.Status != "confirmed" || !b.StartsAt.After(time.Now()))) {
+	if !settings.allows(kind) || b.Version != version || (strings.HasPrefix(kind, "reminder") && (b.Status != "confirmed" || !b.StartsAt.After(time.Now()))) {
 		_, e = tx.Exec(ctx, "DELETE FROM jobs WHERE id=$1", id)
 	} else {
 		title := "Ваша запись подтверждена"
@@ -63,6 +67,9 @@ func (a *app) deliverOne(ctx context.Context) bool {
 			title = "До вашего визита осталось 2 часа"
 		}
 		body := fmt.Sprintf("%s\n\n%s, %s\nМастер: %s\n%s (%s)\nПродолжительность: %d мин\nСтоимость: %d %s\n\nУправление записью (перенос и отмена):\n%s/?booking=%s\n\nСохраните эту персональную ссылку и не передавайте её другим.", title, b.Name, b.Service, b.Specialist, b.StartsAt.In(a.tz).Format("02.01.2006 в 15:04"), a.tz, int(b.EndsAt.Sub(b.StartsAt).Minutes()), b.Total, env("CURRENCY", "KGS"), a.base, b.Token)
+		if settings.ContactText != "" {
+			body += "\n\n" + settings.ContactText
+		}
 		var sendErr error
 		if ch == "telegram" {
 			if b.TelegramChat != nil {
@@ -169,10 +176,14 @@ func (a *app) pollBot(ctx context.Context) error {
 	if e != nil {
 		return e
 	}
+	settings, err := readBotSettings(ctx, a.db, false)
+	if err != nil {
+		return err
+	}
 	for _, u := range updates.Result {
 		if u.Message.Chat.Type == "private" {
 			parts := strings.Fields(u.Message.Text)
-			text := "Добро пожаловать в студию Тихо!\n\n/services — услуги и цены\nЗаписаться: " + a.base
+			text := botWelcome(settings, a.base)
 			if len(parts) == 2 && parts[0] == "/start" && validToken(parts[1]) {
 				text = "Ссылка недействительна или запись уже закрыта."
 				b, err := a.linkTelegram(ctx, parts[1], u.Message.Chat.ID)
@@ -182,6 +193,8 @@ func (a *app) pollBot(ctx context.Context) error {
 				if err != nil && err != pgx.ErrNoRows {
 					return err
 				}
+			} else if len(parts) > 0 && parts[0] == "/services" && !settings.ServicesEnabled {
+				text = "Каталог в боте временно скрыт. Услуги и запись доступны на сайте: " + a.base
 			} else if len(parts) > 0 && parts[0] == "/services" {
 				rows, err := a.db.Query(ctx, "SELECT name,prices FROM services WHERE active ORDER BY id")
 				if err != nil {
@@ -291,4 +304,16 @@ func (a *app) linkTelegram(ctx context.Context, token string, chat int64) (booki
 		return b, err
 	}
 	return b, tx.Commit(ctx)
+}
+
+func botWelcome(settings botSettings, base string) string {
+	text := settings.WelcomeMessage
+	if settings.ServicesEnabled {
+		text += "\n\n/services — услуги и цены"
+	}
+	text += "\n\nЗаписаться: " + base
+	if settings.ContactText != "" {
+		text += "\n\n" + settings.ContactText
+	}
+	return text
 }

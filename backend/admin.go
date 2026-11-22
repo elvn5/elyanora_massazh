@@ -73,7 +73,12 @@ func (a *app) dashboard(w http.ResponseWriter, r *http.Request) {
 		}
 		catalog[kind] = raw
 	}
-	respond(w, 200, map[string]any{"bookings": bs, "shifts": shifts, "catalog": catalog, "stats": map[string]int{"confirmed": confirmed, "cancelled": cancelled, "completed": completed, "no_show": noShow, "revenue": revenue, "failed_notifications": failed}})
+	weekly, err := a.weeklyMetrics(ctx, date)
+	if err != nil {
+		dbError(w, err)
+		return
+	}
+	respond(w, 200, map[string]any{"weekly": weekly, "bookings": bs, "shifts": shifts, "catalog": catalog, "stats": map[string]int{"confirmed": confirmed, "cancelled": cancelled, "completed": completed, "no_show": noShow, "revenue": revenue, "failed_notifications": failed}})
 }
 func (a *app) saveCatalog(w http.ResponseWriter, r *http.Request) {
 	kind := r.PathValue("kind")

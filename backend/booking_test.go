@@ -51,7 +51,7 @@ func fixture(t *testing.T) (*app, *httptest.Server, time.Time) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	_, e = db.Exec(ctx, `UPDATE services SET active=true,prices='{"60":2500,"90":3500,"120":4500}' WHERE id=1; UPDATE specialists SET active=true; UPDATE extras SET active=true,price=600,minutes=15 WHERE id=2`)
+	_, e = db.Exec(ctx, `UPDATE bot_settings SET welcome_message='Добро пожаловать!',contact_text='',services_enabled=true,reminder_24h=true,reminder_2h=true; UPDATE services SET active=true,prices='{"60":2500,"90":3500,"120":4500}' WHERE id=1; UPDATE specialists SET active=true; UPDATE extras SET active=true,price=600,minutes=15 WHERE id=2`)
 	if e != nil {
 		t.Fatal(e)
 	}

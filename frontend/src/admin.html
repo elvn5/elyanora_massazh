@@ -1,23 +1,765 @@
-<main class="admin-shell">@if(checking){<div class="empty-state">Проверяем сессию…</div>}@else if(!logged){<section class="login-card"><div class="eyebrow">ТИХО · ДЛЯ КОМАНДЫ</div><h1>Рады видеть вас</h1><p class="muted">Войдите, чтобы управлять расписанием студии.</p>@if(error){<div class="alert error" role="alert">{{error}}</div>}<form (ngSubmit)="login()"><label>Пароль администратора<input type="password" name="password" [(ngModel)]="password" autocomplete="current-password" required></label><button class="primary w-full" [disabled]="busy">{{busy?'Проверяем…':'Войти в панель'}}</button></form></section>}@else{
-<div class="admin-heading"><div><div class="eyebrow">ПРОСТРАНСТВО ДЛЯ КОМАНДЫ</div><h1>Пульс студии</h1></div><button class="secondary" (click)="logout()" [disabled]="busy">Выйти</button></div>
-@if(error){<div class="alert error" role="alert">{{error}}</div>}@if(notice){<div class="alert success" role="status">{{notice}}</div>}
-<div class="admin-tabs">@for(t of [{id:'schedule',label:'Расписание'},{id:'services',label:'Услуги'},{id:'extras',label:'Дополнительные опции'},{id:'specialists',label:'Специалисты'}];track t.id){<button [class.active]="tab===t.id" (click)="tab=t.id;editor=null">{{t.label}}</button>}</div>
-@if(data){@if(tab==='schedule'){
-<div class="admin-toolbar"><label>Дата<input type="date" [(ngModel)]="date" (change)="refresh()"></label><span class="muted">Все часы: {{catalog.timezone}}</span><button class="secondary" (click)="refresh()" [disabled]="busy">Обновить</button></div>
-<div class="stats-grid"><div><span>Ожидаем гостей</span><strong>{{data.stats['confirmed']}}</strong></div><div><span>Завершено</span><strong>{{data.stats['completed']}}</strong></div><div><span>Отмены / неявки</span><strong>{{data.stats['cancelled']}} / {{data.stats['no_show']}}</strong></div><div><span>Выручка за день</span><strong>{{money(data.stats['revenue'])}}</strong></div></div>
-@if(data.stats['failed_notifications']){<div class="alert error">Не доставлено уведомлений: {{data.stats['failed_notifications']}}. Проверьте настройки Telegram и журналы сервера. Повторные попытки выполняются автоматически (до 12).</div>}
-<section class="admin-panel"><div class="section-heading"><h2>Записи на день</h2><p>Выручка учитывает только завершённые сеансы.</p></div><div class="table-scroll"><table><thead><tr><th>Время</th><th>Гость</th><th>Сеанс</th><th>Специалист</th><th>Статус</th><th>Действия</th></tr></thead><tbody>@for(b of data.bookings;track b.id){<tr><td><strong>{{time(b.starts_at)}}–{{time(b.ends_at)}}</strong></td><td>{{b.name}}<small>{{b.phone}}</small></td><td>{{b.service}}<small>{{money(b.total)}}</small>@for(x of b.extras;track x.id){<small>+ {{x.name}}</small>}</td><td>{{b.specialist}}</td><td><span class="badge" [class.cancelled]="b.status==='cancelled'" [attr.data-status]="b.status">{{statuses[b.status]}}</span></td><td>@if(b.status==='confirmed'){<div class="table-actions"><button (click)="status(b.id,'completed')" [disabled]="busy">Завершён</button><button (click)="status(b.id,'no_show')" [disabled]="busy">Неявка</button><button class="danger-text" (click)="status(b.id,'cancelled')" [disabled]="busy">Отменить</button></div>}</td></tr>}@empty{<tr><td colspan="6" class="empty-state">На эту дату пока нет записей.</td></tr>}</tbody></table></div></section>
-<section class="admin-panel"><div class="section-heading"><h2>Рабочие интервалы</h2><p>Добавьте отдельные интервалы до и после перерыва. Время вне интервалов недоступно для записи.</p></div><form class="shift-form" (ngSubmit)="addShift()"><label>Специалист<select name="master" [(ngModel)]="shiftMaster" required><option [ngValue]="0" disabled>Выберите мастера</option>@for(s of data.catalog.specialists;track s.id){<option [ngValue]="s.id">{{s.name}}</option>}</select></label><label>Начало<input name="start" type="time" [(ngModel)]="shiftStart" step="900" required></label><label>Конец<input name="end" type="time" [(ngModel)]="shiftEnd" step="900" required></label><button class="primary" [disabled]="busy||!shiftMaster">Добавить интервал</button></form><div class="shift-list">@for(s of data.shifts;track s.id){<div><strong>{{master(s.specialist_id)}}</strong><span>{{time(s.starts_at)}}–{{time(s.ends_at)}}</span><button class="text-button danger-text" (click)="removeShift(s.id)" [disabled]="busy">Удалить</button></div>}@empty{<p class="muted">Рабочих интервалов нет — запись на этот день закрыта.</p>}</div></section>
-}@else{
-<div class="admin-toolbar"><h2>{{tab==='services'?'Услуги':tab==='extras'?'Дополнительные опции':'Специалисты'}}</h2><button class="primary" (click)="edit(tab)">Добавить</button></div>
-@if(tab==='services'){<p class="muted mb-6">Активные услуги отображаются на сайте и по команде /services в Telegram.</p>@for(s of data.catalog.services;track s.id){<div class="catalog-row"><div><h3>{{s.name}} @if(!s.active){<span class="badge cancelled">Скрыта</span>}</h3><p>{{s.description}}</p><small>{{prices(s)}}</small></div><button class="secondary" (click)="edit('services',s)">Изменить</button></div>}}
-@if(tab==='extras'){@for(s of data.catalog.extras;track s.id){<div class="catalog-row"><div><h3>{{s.name}} @if(!s.active){<span class="badge cancelled">Скрыта</span>}</h3><p>{{money(s.price)}} · + {{s.minutes}} мин</p></div><button class="secondary" (click)="edit('extras',s)">Изменить</button></div>}}
-@if(tab==='specialists'){@for(s of data.catalog.specialists;track s.id){<div class="catalog-row"><div><h3>{{s.name}} @if(!s.active){<span class="badge cancelled">Неактивен</span>}</h3><p>{{s.bio}}</p></div><button class="secondary" (click)="edit('specialists',s)">Изменить</button></div>}}
-@if(editor){<section class="admin-panel editor"><h2>{{editor.id?'Редактирование':'Новая запись'}}</h2><form (ngSubmit)="save()"><label>Название / имя<input name="name" [(ngModel)]="editor.name" required minlength="2" maxlength="100"></label>@if(editKind==='services'){<label>Описание<textarea name="description" [(ngModel)]="editor.description" maxlength="1000"></textarea></label><p class="muted small">Оставьте цену пустой, чтобы отключить длительность. Нулевая цена означает бесплатный сеанс.</p><div class="price-inputs"><label>60 минут<input type="number" name="p60" [(ngModel)]="editor.p60" min="0" max="1000000"></label><label>90 минут<input type="number" name="p90" [(ngModel)]="editor.p90" min="0" max="1000000"></label><label>120 минут<input type="number" name="p120" [(ngModel)]="editor.p120" min="0" max="1000000"></label></div>}
-@if(editKind==='specialists'){<label>О специалисте<textarea name="bio" [(ngModel)]="editor.bio" maxlength="1000"></textarea></label>}
-@if(editKind==='extras'){<div class="price-inputs"><label>Стоимость<input type="number" name="price" [(ngModel)]="editor.price" required min="0" max="1000000"></label><label>Дополнительное время (мин)<input type="number" name="minutes" [(ngModel)]="editor.minutes" required min="0" max="60" step="15"></label></div>}
-<label class="consent"><input name="active" type="checkbox" [(ngModel)]="editor.active"><span>Доступно для новых записей</span></label><p class="small muted mb-5">Изменения не меняют стоимость и состав ранее оформленных записей.</p><div class="flex gap-3"><button class="primary" [disabled]="busy">Сохранить</button><button type="button" class="secondary" (click)="editor=null">Закрыть</button></div></form></section>}
-}
-}
-}
+@if(checking){
+<main class="admin-login-shell">
+  <div class="empty-state" aria-live="polite">
+    Открываем пространство команды…
+  </div>
 </main>
+}@else if(!logged){
+<main class="admin-login-shell">
+  <a class="brand" href="/"><span class="brand-icon">т</span> тихо</a>
+  <section class="login-card">
+    <div class="eyebrow">ПРОСТРАНСТВО КОМАНДЫ</div>
+    <h1>Рады видеть вас</h1>
+    <p class="muted">Расписание, гости и забота о студии — в одном месте.</p>
+    @if(error){
+    <div class="alert error" role="alert">{{error}}</div>
+    }
+    <form (ngSubmit)="login()">
+      <label
+        >Пароль администратора<input
+          type="password"
+          name="password"
+          [(ngModel)]="password"
+          autocomplete="current-password"
+          required /></label
+      ><button class="primary w-full" [disabled]="busy">
+        {{busy?'Проверяем…':'Войти в панель'}}
+      </button>
+    </form>
+    <a class="login-back" href="/">Вернуться к онлайн-записи</a>
+  </section>
+</main>
+}@else{
+<div class="admin-app">
+  @if(navOpen){<button
+    class="sidebar-scrim"
+    aria-label="Закрыть меню"
+    (click)="closeMenu()"
+  ></button
+  >}
+  <aside
+    #sidebar
+    id="admin-sidebar"
+    class="admin-sidebar"
+    [class.open]="navOpen"
+  >
+    <a class="brand" href="/"><span class="brand-icon">т</span> тихо</a
+    ><span class="sidebar-caption">УПРАВЛЕНИЕ СТУДИЕЙ</span>
+    <nav class="sidebar-nav" aria-label="Разделы админки">
+      @for(item of menu;track item.id){@if(item.group){
+      <p class="sidebar-group">{{item.group}}</p>
+      }
+      <a
+        [href]="'/admin#'+item.id"
+        [class.active]="tab===item.id"
+        [attr.aria-current]="tab===item.id?'page':null"
+        (click)="select(item.id)"
+        ><svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.65"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path [attr.d]="item.icon" /></svg
+        ><span>{{item.label}}</span
+        >@if(item.id==='bookings'&&data?.stats?.['confirmed']){<span
+          class="nav-count"
+          >{{data?.stats?.['confirmed']}}</span
+        >}</a
+      >}
+    </nav>
+    <div class="sidebar-bottom">
+      <a class="sidebar-website" href="/"
+        >Открыть сайт студии <span aria-hidden="true">↗</span></a
+      >
+      <div class="sidebar-account">
+        <span class="account-avatar">А</span>
+        <div><strong>Администратор</strong><span>Команда студии</span></div>
+        <button
+          (click)="logout()"
+          [disabled]="busy"
+          aria-label="Выйти из админки"
+          title="Выйти"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.7"
+            aria-hidden="true"
+          >
+            <path d="M9 4H4v16h5 M9 12h12 M17 8l4 4-4 4" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+  <div class="admin-workspace">
+    <header class="admin-topbar">
+      <button
+        #menuToggle
+        class="admin-mobile-toggle secondary"
+        (click)="toggleMenu()"
+        aria-controls="admin-sidebar"
+        [attr.aria-expanded]="navOpen"
+      >
+        Меню
+      </button>
+      <div class="admin-breadcrumb">
+        Студия <span>/</span> <strong>{{page.label}}</strong>
+      </div>
+      <span class="admin-timezone">{{catalog.timezone}}</span
+      ><span class="account-avatar topbar-avatar">А</span>
+    </header>
+    <main class="admin-content">
+      <div class="workspace-heading">
+        <div>
+          <div class="eyebrow">ТИХО · ПРОСТРАНСТВО КОМАНДЫ</div>
+          <h1>{{page.label}}</h1>
+          <p>{{page.description}}</p>
+        </div>
+        @if(dateSection){<label class="workspace-date"
+          >Выбранная дата<input
+            type="date"
+            [(ngModel)]="date"
+            (change)="refresh()"
+            [disabled]="busy" /></label
+        >}
+      </div>
+      @if(error){
+      <div class="alert error" role="alert">{{error}}</div>
+      }@if(notice){
+      <div class="alert success" role="status">{{notice}}</div>
+      } @if(data){ @if(tab==='overview'){
+      <div class="overview-stats">
+        <article>
+          <span class="metric-label">Записей за день</span
+          ><strong>{{data.bookings.length}}</strong
+          ><span class="metric-note"
+            >{{data.stats['confirmed']}} ожидают визита</span
+          >
+        </article>
+        <article>
+          <span class="metric-label">Завершено сеансов</span
+          ><strong>{{data.stats['completed']}}</strong
+          ><span class="metric-note"
+            >{{data.stats['cancelled']}} отмен · {{data.stats['no_show']}}
+            неявок</span
+          >
+        </article>
+        <article class="metric-featured">
+          <span class="metric-label">Выручка за день</span
+          ><strong>{{money(data.stats['revenue'])}}</strong
+          ><span class="metric-note">По завершённым визитам</span>
+        </article>
+        <article>
+          <span class="metric-label">Часы работы команды</span
+          ><strong>{{scheduledHours}} <small>ч</small></strong
+          ><span class="metric-note"
+            >{{data.shifts.length}} рабочих интервалов</span
+          >
+        </article>
+      </div>
+      <div class="overview-columns">
+        <section class="admin-panel chart-panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Ритм недели</h2>
+              <p>Количество записей за 7 дней до выбранной даты включительно</p>
+            </div>
+            <span class="chart-total"
+              >{{weekTotal}} <small>записей</small></span
+            >
+          </div>
+          <div class="week-chart" aria-label="Записи за семь дней">
+            @for(day of data.weekly;track day.date){
+            <div class="chart-column">
+              <span class="chart-number">{{day.bookings}}</span>
+              <div class="chart-track">
+                <div
+                  class="chart-bar"
+                  [class.last]="day.date===date"
+                  [style.height.%]="day.bookings/weekMax*100"
+                  [attr.aria-label]="day.date+': '+day.bookings+' записей'"
+                ></div>
+              </div>
+              <span class="chart-day">{{dayLabel(day.date)}}</span>
+            </div>
+            }
+          </div>
+          @if(!weekTotal){
+          <p class="chart-empty">
+            Пока тихо. Первые записи появятся здесь автоматически.
+          </p>
+          }
+        </section>
+        <section class="admin-panel readiness-panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Студия готова к гостям?</h2>
+              <p>Быстрый доступ к настройкам</p>
+            </div>
+          </div>
+          <a href="/admin#services" (click)="select('services')"
+            ><span
+              ><strong>Каталог услуг</strong
+              ><small>{{activeServices}} активных услуг</small></span
+            ><span class="readiness-indicator" [class.ready]="activeServices>0"
+              >{{activeServices?'Готово':'Настроить'}}</span
+            ></a
+          ><a href="/admin#specialists" (click)="select('specialists')"
+            ><span
+              ><strong>Команда</strong
+              ><small>{{activeMasters}} активных специалистов</small></span
+            ><span class="readiness-indicator" [class.ready]="activeMasters>0"
+              >{{activeMasters?'Готово':'Настроить'}}</span
+            ></a
+          ><a href="/admin#schedule" (click)="select('schedule')"
+            ><span
+              ><strong>Расписание на день</strong
+              ><small>{{data.shifts.length}} рабочих интервалов</small></span
+            ><span
+              class="readiness-indicator"
+              [class.ready]="data.shifts.length>0"
+              >{{data.shifts.length?'Открыто':'Закрыто'}}</span
+            ></a
+          ><a href="/admin#bot" (click)="select('bot')"
+            ><span
+              ><strong>Telegram-бот</strong
+              ><small
+                >{{bot?.username?'@'+bot?.username:'Подключение не
+                подтверждено'}}</small
+              ></span
+            ><span class="readiness-indicator" [class.ready]="!!bot?.username"
+              >{{bot?.username?'Подключён':'Проверить'}}</span
+            ></a
+          >
+        </section>
+      </div>
+      @if(data.stats['failed_notifications']){
+      <div class="alert error">
+        Есть ошибки доставки: {{data.stats['failed_notifications']}}.
+        <a href="/admin#bot" (click)="select('bot')" class="text-button"
+          >Проверить Telegram-бота</a
+        >
+      </div>
+      }
+      <section class="admin-panel">
+        <div class="panel-heading">
+          <div>
+            <h2>Ожидаем гостей</h2>
+            <p>До пяти ближайших подтверждённых записей за выбранный день</p>
+          </div>
+          <a class="secondary" href="/admin#bookings" (click)="select('bookings')"
+            >Все записи</a
+          >
+        </div>
+        <div class="upcoming-list">
+          @for(b of upcoming;track b.id){
+          <div>
+            <span class="upcoming-time">{{time(b.starts_at)}}</span>
+            <div>
+              <strong>{{b.name}}</strong
+              ><small>{{b.service}} · {{b.specialist}}</small>
+            </div>
+            <span class="badge">Подтверждена</span
+            ><strong>{{money(b.total)}}</strong>
+          </div>
+          }@empty{
+          <div class="dashboard-empty">
+            <span aria-hidden="true">◷</span>
+            <h3>Время для новых встреч</h3>
+            <p>На выбранный день нет подтверждённых записей.</p>
+            <a href="/admin#schedule" class="secondary" (click)="select('schedule')"
+              >Настроить расписание</a
+            >
+          </div>
+          }
+        </div>
+      </section>
+      } @if(tab==='bookings'){
+      <div class="booking-filters">
+        <label
+          >Поиск<input
+            type="search"
+            [(ngModel)]="search"
+            placeholder="Имя, телефон, услуга или мастер" /></label
+        ><label
+          >Статус<select [(ngModel)]="filter">
+            <option value="">Все статусы</option>
+            <option value="confirmed">Подтверждены</option>
+            <option value="completed">Завершены</option>
+            <option value="cancelled">Отменены</option>
+            <option value="no_show">Неявки</option>
+          </select></label
+        ><button class="secondary" (click)="refresh()" [disabled]="busy">
+          Обновить
+        </button>
+      </div>
+      <section class="admin-panel">
+        <div class="section-heading">
+          <h2>Записи на день</h2>
+          <p>Выручка учитывает только завершённые сеансы.</p>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Время</th>
+                <th>Гость</th>
+                <th>Сеанс</th>
+                <th>Специалист</th>
+                <th>Статус</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for(b of filteredBookings;track b.id){
+              <tr>
+                <td>
+                  <strong>{{time(b.starts_at)}}–{{time(b.ends_at)}}</strong>
+                </td>
+                <td>{{b.name}}<small>{{b.phone}}</small></td>
+                <td>
+                  {{b.service}}<small>{{money(b.total)}}</small>@for(x of
+                  b.extras;track x.id){<small>+ {{x.name}}</small>}
+                </td>
+                <td>{{b.specialist}}</td>
+                <td>
+                  <span
+                    class="badge"
+                    [class.cancelled]="b.status==='cancelled'"
+                    [attr.data-status]="b.status"
+                    >{{statuses[b.status]}}</span
+                  >
+                </td>
+                <td>
+                  @if(b.status==='confirmed'){
+                  <div class="table-actions">
+                    <button
+                      (click)="status(b.id,'completed')"
+                      [disabled]="busy"
+                    >
+                      Завершён</button
+                    ><button (click)="status(b.id,'no_show')" [disabled]="busy">
+                      Неявка</button
+                    ><button
+                      class="danger-text"
+                      (click)="status(b.id,'cancelled')"
+                      [disabled]="busy"
+                    >
+                      Отменить
+                    </button>
+                  </div>
+                  }
+                </td>
+              </tr>
+              }@empty{
+              <tr>
+                <td colspan="6" class="empty-state">
+                  Записей по выбранным условиям нет.
+                </td>
+              </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+      } @if(tab==='schedule'){
+      <div class="schedule-summary">
+        <p>
+          <strong>{{data.shifts.length}}</strong> интервалов ·
+          <strong>{{scheduledHours}} ч</strong> работы команды
+        </p>
+        <button class="secondary" (click)="refresh()" [disabled]="busy">
+          Обновить
+        </button>
+      </div>
+      <section class="admin-panel">
+        <div class="section-heading">
+          <h2>Рабочие интервалы</h2>
+          <p>
+            Добавьте отдельные интервалы до и после перерыва. Время вне
+            интервалов недоступно для записи.
+          </p>
+        </div>
+        <form class="shift-form" (ngSubmit)="addShift()">
+          <label
+            >Специалист<select name="master" [(ngModel)]="shiftMaster" required>
+              <option [ngValue]="0" disabled>Выберите мастера</option>
+              @for(s of data.catalog.specialists;track s.id){
+              <option [ngValue]="s.id">{{s.name}}</option>
+              }
+            </select></label
+          ><label
+            >Начало<input
+              name="start"
+              type="time"
+              [(ngModel)]="shiftStart"
+              step="900"
+              required /></label
+          ><label
+            >Конец<input
+              name="end"
+              type="time"
+              [(ngModel)]="shiftEnd"
+              step="900"
+              required /></label
+          ><button class="primary" [disabled]="busy||!shiftMaster">
+            Добавить интервал
+          </button>
+        </form>
+        <div class="shift-list">
+          @for(s of data.shifts;track s.id){
+          <div>
+            <strong>{{master(s.specialist_id)}}</strong
+            ><span>{{time(s.starts_at)}}–{{time(s.ends_at)}}</span
+            ><button
+              class="text-button danger-text"
+              (click)="removeShift(s.id)"
+              [disabled]="busy"
+            >
+              Удалить
+            </button>
+          </div>
+          }@empty{
+          <p class="muted">
+            Рабочих интервалов нет — запись на этот день закрыта.
+          </p>
+          }
+        </div>
+      </section>
+      } @if(['services','extras','specialists'].includes(tab)){
+      <div class="admin-toolbar">
+        <h2>
+          {{tab==='services'?'Услуги':tab==='extras'?'Дополнительные
+          опции':'Специалисты'}}
+        </h2>
+        <button class="primary" (click)="edit(tab)">Добавить</button>
+      </div>
+      @if(tab==='services'){
+      <p class="muted mb-6">
+        Активные услуги отображаются на сайте и по команде /services в Telegram.
+      </p>
+      @for(s of data.catalog.services;track s.id){
+      <div class="catalog-row">
+        <div>
+          <h3>
+            {{s.name}} @if(!s.active){<span class="badge cancelled">Скрыта</span
+            >}
+          </h3>
+          <p>{{s.description}}</p>
+          <small>{{prices(s)}}</small>
+        </div>
+        <button class="secondary" (click)="edit('services',s)">Изменить</button>
+      </div>
+      }} @if(tab==='extras'){@for(s of data.catalog.extras;track s.id){
+      <div class="catalog-row">
+        <div>
+          <h3>
+            {{s.name}} @if(!s.active){<span class="badge cancelled">Скрыта</span
+            >}
+          </h3>
+          <p>{{money(s.price)}} · + {{s.minutes}} мин</p>
+        </div>
+        <button class="secondary" (click)="edit('extras',s)">Изменить</button>
+      </div>
+      }} @if(tab==='specialists'){@for(s of data.catalog.specialists;track
+      s.id){
+      <div class="catalog-row">
+        <div>
+          <h3>
+            {{s.name}} @if(!s.active){<span class="badge cancelled"
+              >Неактивен</span
+            >}
+          </h3>
+          <p>{{s.bio}}</p>
+        </div>
+        <button class="secondary" (click)="edit('specialists',s)">
+          Изменить
+        </button>
+      </div>
+      }} @if(editor){
+      <section class="admin-panel editor">
+        <h2>{{editor.id?'Редактирование':'Новая запись'}}</h2>
+        <form (ngSubmit)="save()">
+          <label
+            >Название / имя<input
+              name="name"
+              [(ngModel)]="editor.name"
+              required
+              minlength="2"
+              maxlength="100" /></label
+          >@if(editKind==='services'){<label
+            >Описание<textarea
+              name="description"
+              [(ngModel)]="editor.description"
+              maxlength="1000"
+            ></textarea>
+          </label>
+          <p class="muted small">
+            Оставьте цену пустой, чтобы отключить длительность. Нулевая цена
+            означает бесплатный сеанс.
+          </p>
+          <div class="price-inputs">
+            <label
+              >60 минут<input
+                type="number"
+                name="p60"
+                [(ngModel)]="editor.p60"
+                min="0"
+                max="1000000" /></label
+            ><label
+              >90 минут<input
+                type="number"
+                name="p90"
+                [(ngModel)]="editor.p90"
+                min="0"
+                max="1000000" /></label
+            ><label
+              >120 минут<input
+                type="number"
+                name="p120"
+                [(ngModel)]="editor.p120"
+                min="0"
+                max="1000000"
+            /></label>
+          </div>
+          } @if(editKind==='specialists'){<label
+            >О специалисте<textarea
+              name="bio"
+              [(ngModel)]="editor.bio"
+              maxlength="1000"
+            ></textarea></label
+          >} @if(editKind==='extras'){
+          <div class="price-inputs">
+            <label
+              >Стоимость<input
+                type="number"
+                name="price"
+                [(ngModel)]="editor.price"
+                required
+                min="0"
+                max="1000000" /></label
+            ><label
+              >Дополнительное время (мин)<input
+                type="number"
+                name="minutes"
+                [(ngModel)]="editor.minutes"
+                required
+                min="0"
+                max="60"
+                step="15"
+            /></label>
+          </div>
+          }
+          <label class="consent"
+            ><input
+              name="active"
+              type="checkbox"
+              [(ngModel)]="editor.active"
+            /><span>Доступно для новых записей</span></label
+          >
+          <p class="small muted mb-5">
+            Изменения не меняют стоимость и состав ранее оформленных записей.
+          </p>
+          <div class="flex gap-3">
+            <button class="primary" [disabled]="busy">Сохранить</button
+            ><button type="button" class="secondary" (click)="editor=null">
+              Закрыть
+            </button>
+          </div>
+        </form>
+      </section>
+      } } @if(tab==='bot'){ @if(bot&&botDraft){
+      <section class="bot-connection admin-panel">
+        <span class="telegram-mark" aria-hidden="true"
+          ><svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+          >
+            <path d="M3 10l18-7-5 18-5-7-8-4z M11 14l10-11" /></svg
+        ></span>
+        <div>
+          <h2>{{bot.username?'@'+bot.username:'Telegram-бот'}}</h2>
+          <p>
+            {{bot.username?'Бот распознан через Telegram
+            API':bot.configured?'Токен задан, подключение ещё не
+            подтверждено':'Токен бота пока не настроен'}}
+          </p>
+          <span class="small muted"
+            >Токен хранится в GitHub Secrets и здесь не отображается.</span
+          >
+        </div>
+        <button class="secondary" [disabled]="busy" (click)="checkBot()">
+          Проверить подключение
+        </button>
+      </section>
+      <div class="bot-stats">
+        <article>
+          <strong>{{bot.stats['linked']}}</strong
+          ><span>Предстоящих записей с Telegram</span>
+        </article>
+        <article>
+          <strong>{{bot.stats['pending']}}</strong
+          ><span>Уведомлений в очереди</span>
+        </article>
+        <article>
+          <strong>{{bot.stats['sent']}}</strong
+          ><span>Доставлено за 7 дней</span>
+        </article>
+        <article [class.has-errors]="bot.stats['failed']>0">
+          <strong>{{bot.stats['failed']}}</strong><span>Ошибок доставки</span>
+        </article>
+      </div>
+      <form class="bot-settings-layout" (ngSubmit)="saveBot()">
+        <div class="bot-setting-sections">
+          <section class="admin-panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Сообщения бота</h2>
+                <p>Тексты меняются сразу после сохранения</p>
+              </div>
+            </div>
+            <label
+              >Приветственное сообщение<textarea
+                name="welcome"
+                rows="4"
+                [(ngModel)]="botDraft.welcome_message"
+                (ngModelChange)="botDirty=true"
+                required
+                minlength="2"
+                maxlength="1000"
+              ></textarea
+              ><small class="muted"
+                >{{botDraft.welcome_message.length}} / 1000 · показывается по
+                команде /start</small
+              ></label
+            ><label
+              >Контакты и информация о визите<textarea
+                name="contact"
+                rows="3"
+                [(ngModel)]="botDraft.contact_text"
+                (ngModelChange)="botDirty=true"
+                maxlength="500"
+                placeholder="Адрес студии, телефон или рекомендации перед визитом"
+              ></textarea
+              ><small class="muted"
+                >Добавляется в приветствие и уведомления · до 500
+                символов</small
+              ></label
+            ><label class="setting-toggle"
+              ><span
+                ><strong>Показывать услуги в боте</strong
+                ><small
+                  >Команда /services использует активные услуги из
+                  каталога</small
+                ></span
+              ><input
+                type="checkbox"
+                role="switch"
+                name="services"
+                [(ngModel)]="botDraft.services_enabled"
+                (ngModelChange)="botDirty=true"
+            /></label>
+          </section>
+          <section class="admin-panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Напоминания о визите</h2>
+                <p>Отправляются клиентам, которые подключили бота к записи</p>
+              </div>
+            </div>
+            <label class="setting-toggle"
+              ><span
+                ><strong>За 24 часа</strong
+                ><small>Напомнить накануне визита</small></span
+              ><input
+                type="checkbox"
+                role="switch"
+                name="reminder24"
+                [(ngModel)]="botDraft.reminder_24h"
+                (ngModelChange)="botDirty=true" /></label
+            ><label class="setting-toggle"
+              ><span
+                ><strong>За 2 часа</strong
+                ><small>Напомнить незадолго до сеанса</small></span
+              ><input
+                type="checkbox"
+                role="switch"
+                name="reminder2"
+                [(ngModel)]="botDraft.reminder_2h"
+                (ngModelChange)="botDirty=true"
+            /></label>
+            <p class="settings-hint">
+              Настройки действуют и на ожидающие уведомления. Напоминания,
+              пропущенные во время отключения, не отправляются задним числом.
+              Подтверждения, отмены и переносы остаются включены.
+            </p>
+          </section>
+          <div class="settings-save">
+            <span class="muted"
+              >{{botDirty?'Есть несохранённые изменения':'Все изменения
+              сохранены'}}</span
+            ><button
+              class="primary"
+              [disabled]="busy||!botDirty||botDraft.welcome_message.trim().length<2"
+            >
+              {{busy?'Сохраняем…':'Сохранить настройки'}}
+            </button>
+          </div>
+        </div>
+        <aside class="bot-preview-panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Так увидит гость</h2>
+              <p>Предпросмотр приветствия</p>
+            </div>
+          </div>
+          <div class="telegram-preview">
+            <div class="preview-bot-name">
+              {{bot.username?'@'+bot.username:'Бот студии'}}
+            </div>
+            <p>{{botPreview}}</p>
+            <span>только что</span>
+          </div>
+          <p class="settings-hint">
+            Клиент запускает бота по персональной ссылке после записи. До
+            запуска Telegram не разрешает отправлять ему сообщения.
+          </p>
+        </aside>
+      </form>
+      <section class="admin-panel notification-recovery">
+        <div>
+          <h3>Ошибки доставки</h3>
+          <p>
+            После устранения проблемы можно повторить отправку для актуальных
+            записей. Автоматически выполняется до 12 попыток.
+          </p>
+        </div>
+        <button
+          class="secondary"
+          [disabled]="busy||!bot.stats['failed']"
+          (click)="retryJobs()"
+        >
+          Повторить отправку
+        </button>
+      </section>
+      }@else{
+      <div class="empty-state">
+        Не удалось загрузить настройки бота.
+        <button class="secondary" (click)="run(loadBot.bind(this))">
+          Повторить
+        </button>
+      </div>
+      } } }
+      <p class="workspace-footer">Тихо · забота о гостях начинается здесь</p>
+    </main>
+  </div>
+</div>
+}

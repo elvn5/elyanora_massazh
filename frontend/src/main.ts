@@ -36,6 +36,7 @@ class App {
  async startMove(){this.moving=true;this.date=this.minDate;await this.loadSlots()}
  async move(){if(!this.booking||!this.selectedSlot||this.busy)return;this.busy=true;this.error='';try{this.booking=await api<Booking>('/manage/'+this.booking.token+'/reschedule','POST',{starts_at:this.selectedSlot});this.moving=false;this.notice='Запись перенесена. Напоминания обновлены.'}catch(e){this.error=this.message(e);this.selectedSlot='';this.slotsLoaded=false;this.slots=[]}finally{this.busy=false;this.cd.markForCheck()}}
  get manageLink(){return location.origin+'/?booking='+this.booking?.token}
+ get reminderDescription(){const intervals=[...(this.catalog.reminder_24h!==false?['за 24 часа']:[]),...(this.catalog.reminder_2h!==false?['за 2 часа']:[])];return intervals.length?'Напомним '+intervals.join(' и ')+' до визита. Если запись оформлена позже, отправим только предстоящие напоминания.':'В Telegram придут подтверждение записи и сообщения о переносе или отмене.'}
  get telegramLink(){return 'https://t.me/'+this.catalog.telegram_bot+'?start='+this.booking?.token}
  async copy(){try{await navigator.clipboard.writeText(this.manageLink);this.notice='Ссылка скопирована'}catch{this.notice='Скопируйте ссылку из адресной строки'}this.cd.markForCheck()}
 }

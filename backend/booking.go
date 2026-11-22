@@ -93,7 +93,12 @@ func (a *app) catalog(w http.ResponseWriter, r *http.Request) {
 		dbError(w, e)
 		return
 	}
-	respond(w, 200, map[string]any{"specialists": ss, "services": sv, "extras": ex, "timezone": a.tz.String(), "currency": env("CURRENCY", "KGS"), "telegram_bot": a.botUsername()})
+	settings, err := readBotSettings(ctx, a.db, false)
+	if err != nil {
+		dbError(w, err)
+		return
+	}
+	respond(w, 200, map[string]any{"reminder_24h": settings.Reminder24h, "reminder_2h": settings.Reminder2h, "specialists": ss, "services": sv, "extras": ex, "timezone": a.tz.String(), "currency": env("CURRENCY", "KGS"), "telegram_bot": a.botUsername()})
 }
 
 type selection struct {

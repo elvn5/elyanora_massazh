@@ -147,6 +147,19 @@ func migrate(ctx context.Context, db *pgxpool.Pool) error {
 			return e
 		}
 	}
+	if e = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version=3)").Scan(&applied); e != nil {
+		return e
+	}
+	if !applied {
+		sql, err := migrations.ReadFile("migrations/003_bot_settings.sql")
+		if err != nil {
+			return err
+		}
+		if _, e = tx.Exec(ctx, string(sql)); e != nil {
+			return e
+		}
+	}
+
 	return tx.Commit(ctx)
 }
 func main() {
@@ -227,6 +240,10 @@ func (a *app) routes() http.Handler {
 	m.HandleFunc("POST /api/admin/login", a.login)
 	m.Handle("POST /api/admin/logout", a.auth(http.HandlerFunc(a.logout)))
 	m.Handle("GET /api/admin/dashboard", a.auth(http.HandlerFunc(a.dashboard)))
+	m.Handle("GET /api/admin/bot", a.auth(http.HandlerFunc(a.getBotSettings)))
+	m.Handle("PUT /api/admin/bot", a.auth(http.HandlerFunc(a.saveBotSettings)))
+	m.Handle("POST /api/admin/bot/check", a.auth(http.HandlerFunc(a.checkBot)))
+	m.Handle("POST /api/admin/bot/retry", a.auth(http.HandlerFunc(a.retryBotJobs)))
 	m.Handle("POST /api/admin/{kind}", a.auth(http.HandlerFunc(a.saveCatalog)))
 	m.Handle("POST /api/admin/shifts", a.auth(http.HandlerFunc(a.addShift)))
 	m.Handle("DELETE /api/admin/shifts/{id}", a.auth(http.HandlerFunc(a.deleteShift)))

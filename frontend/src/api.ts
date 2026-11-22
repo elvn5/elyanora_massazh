@@ -1,10 +1,10 @@
 export interface Specialist { id:number; name:string; bio:string; active:boolean }
 export interface Service { id:number; name:string; description:string; prices:Record<string,number>; active:boolean }
 export interface Extra { id:number; name:string; price:number; minutes:number; active:boolean }
-export interface Catalog { specialists:Specialist[]; services:Service[]; extras:Extra[]; timezone:string; currency:string; telegram_bot:string }
+export interface Catalog { specialists:Specialist[]; services:Service[]; extras:Extra[]; timezone:string; currency:string; telegram_bot:string; reminder_24h?:boolean; reminder_2h?:boolean }
 export interface Booking { id:number; token:string; specialist_id:number; specialist:string; service_id:number; service:string; duration:number; extras:Extra[]; total:number; starts_at:string; ends_at:string; name:string; phone:string; status:string; version:number; telegram_chat?:number }
 export interface Shift { id:number; specialist_id:number; starts_at:string; ends_at:string }
-export interface Dashboard { bookings:Booking[]; shifts:Shift[]; catalog:Catalog; stats:Record<string,number> }
+export interface Dashboard { weekly:{date:string;bookings:number;revenue:number}[]; bookings:Booking[]; shifts:Shift[]; catalog:Catalog; stats:Record<string,number> }
 export async function api<T>(path:string,method='GET',body?:unknown):Promise<T> {
  const response=await fetch('/api'+path,{method,credentials:'same-origin',headers:body===undefined?{}:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
  const data=await response.json().catch(()=>({error:'Сервер временно недоступен'}));
