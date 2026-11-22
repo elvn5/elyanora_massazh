@@ -1,5 +1,5 @@
 @if(!admin){
-<header class="site-header"><a class="brand" href="/" aria-label="Тихо — на главную"><span class="brand-icon">т</span> тихо<span class="brand-caption">студия массажа</span></a><nav><span class="desktop-note">Место, где можно выдохнуть</span><a [href]="admin ? '/' : '/admin'">{{admin ? 'Онлайн-запись' : 'Для администратора'}}</a></nav></header>
+<header class="site-header"><a class="brand" href="/" aria-label="Elyanora — на главную"><img class="brand-logo" src="/elyanora-logo.svg" alt="Elyanora" width="252" height="52"><span class="brand-caption">студия массажа</span></a><nav><span class="desktop-note">Место, где можно выдохнуть</span><a [href]="admin ? '/' : '/admin'">{{admin ? 'Онлайн-запись' : 'Для администратора'}}</a></nav></header>
 }
 @if(admin){<app-admin [catalog]="catalog"/>} @else {
 <main class="page-shell">
@@ -23,4 +23,4 @@
 }
 }
 </main>}
-@if(!admin){<footer><a class="brand small-brand" href="/">тихо</a><span>Забота о теле. Пространство для себя.</span><span>Онлайн-запись · {{catalog.timezone}}</span></footer>}
+@if(!admin){<footer><a class="brand small-brand" href="/" aria-label="Elyanora — на главную"><img class="brand-logo" src="/elyanora-logo.svg" alt="Elyanora" width="252" height="52"></a><span>Забота о теле. Пространство для себя.</span><span>Онлайн-запись · {{catalog.timezone}}</span></footer>}

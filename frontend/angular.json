@@ -31,7 +31,13 @@
                 "inlineCritical": false
               },
               "fonts": false
-            }
+            },
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "public"
+              }
+            ]
           }
         },
         "serve": {

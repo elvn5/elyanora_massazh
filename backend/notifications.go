@@ -200,7 +200,7 @@ func (a *app) pollBot(ctx context.Context) error {
 				if err != nil {
 					return err
 				}
-				text = "Услуги студии Тихо:\n"
+				text = "Услуги студии Elyanora:\n"
 				for rows.Next() {
 					var name string
 					var prices map[string]int

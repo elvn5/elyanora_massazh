@@ -1,4 +1,4 @@
-# Тихо / Masajka — онлайн-запись в массажную студию
+# Elyanora / Masajka — онлайн-запись в массажную студию
 
 Angular 21 + Tailwind CSS 4 · Go · PostgreSQL 17 · Docker Compose · GitHub Actions.
 

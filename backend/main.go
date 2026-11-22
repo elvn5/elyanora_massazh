@@ -160,6 +160,19 @@ func migrate(ctx context.Context, db *pgxpool.Pool) error {
 		}
 	}
 
+	if e = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version=4)").Scan(&applied); e != nil {
+		return e
+	}
+	if !applied {
+		sql, err := migrations.ReadFile("migrations/004_elyanora_brand.sql")
+		if err != nil {
+			return err
+		}
+		if _, e = tx.Exec(ctx, string(sql)); e != nil {
+			return e
+		}
+	}
+
 	return tx.Commit(ctx)
 }
 func main() {

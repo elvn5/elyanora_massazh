@@ -6,7 +6,7 @@
 </main>
 }@else if(!logged){
 <main class="admin-login-shell">
-  <a class="brand" href="/"><span class="brand-icon">т</span> тихо</a>
+  <a class="brand" href="/"><img class="brand-logo" src="/elyanora-logo.svg" alt="Elyanora" width="252" height="52"></a>
   <section class="login-card">
     <div class="eyebrow">ПРОСТРАНСТВО КОМАНДЫ</div>
     <h1>Рады видеть вас</h1>
@@ -43,7 +43,7 @@
     class="admin-sidebar"
     [class.open]="navOpen"
   >
-    <a class="brand" href="/"><span class="brand-icon">т</span> тихо</a
+    <a class="brand" href="/"><img class="brand-logo" src="/elyanora-logo.svg" alt="Elyanora" width="252" height="52"></a
     ><span class="sidebar-caption">УПРАВЛЕНИЕ СТУДИЕЙ</span>
     <nav class="sidebar-nav" aria-label="Разделы админки">
       @for(item of menu;track item.id){@if(item.group){
@@ -117,7 +117,7 @@
     <main class="admin-content">
       <div class="workspace-heading">
         <div>
-          <div class="eyebrow">ТИХО · ПРОСТРАНСТВО КОМАНДЫ</div>
+          <div class="eyebrow">ELYANORA · ПРОСТРАНСТВО КОМАНДЫ</div>
           <h1>{{page.label}}</h1>
           <p>{{page.description}}</p>
         </div>
@@ -192,7 +192,7 @@
           </div>
           @if(!weekTotal){
           <p class="chart-empty">
-            Пока тихо. Первые записи появятся здесь автоматически.
+            Пока нет записей. Первые записи появятся здесь автоматически.
           </p>
           }
         </section>
@@ -758,7 +758,7 @@
         </button>
       </div>
       } } }
-      <p class="workspace-footer">Тихо · забота о гостях начинается здесь</p>
+      <p class="workspace-footer">Elyanora · забота о гостях начинается здесь</p>
     </main>
   </div>
 </div>
