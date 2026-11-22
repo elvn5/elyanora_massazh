@@ -6,7 +6,14 @@
 </main>
 }@else if(!logged){
 <main class="admin-login-shell">
-  <a class="brand" href="/"><img class="brand-logo" src="/elyanora-logo.svg" alt="Elyanora" width="252" height="52"></a>
+  <a class="brand" href="/admin"
+    ><img
+      class="brand-logo"
+      src="/elyanora-logo.svg"
+      alt="Elyanora"
+      width="252"
+      height="52"
+  /></a>
   <section class="login-card">
     <div class="eyebrow">ПРОСТРАНСТВО КОМАНДЫ</div>
     <h1>Рады видеть вас</h1>
@@ -26,7 +33,9 @@
         {{busy?'Проверяем…':'Войти в панель'}}
       </button>
     </form>
-    <a class="login-back" href="/">Вернуться к онлайн-записи</a>
+    <p class="login-back">
+      Клиентская запись доступна в Telegram-боте Elyanora
+    </p>
   </section>
 </main>
 }@else{
@@ -43,7 +52,13 @@
     class="admin-sidebar"
     [class.open]="navOpen"
   >
-    <a class="brand" href="/"><img class="brand-logo" src="/elyanora-logo.svg" alt="Elyanora" width="252" height="52"></a
+    <a class="brand" href="/admin"
+      ><img
+        class="brand-logo"
+        src="/elyanora-logo.svg"
+        alt="Elyanora"
+        width="252"
+        height="52" /></a
     ><span class="sidebar-caption">УПРАВЛЕНИЕ СТУДИЕЙ</span>
     <nav class="sidebar-nav" aria-label="Разделы админки">
       @for(item of menu;track item.id){@if(item.group){
@@ -72,8 +87,10 @@
       >}
     </nav>
     <div class="sidebar-bottom">
-      <a class="sidebar-website" href="/"
-        >Открыть сайт студии <span aria-hidden="true">↗</span></a
+      <a
+        class="sidebar-website"
+        [href]="bot?.username ? 'https://t.me/'+bot?.username : '/admin#bot'"
+        >Открыть Telegram-бота <span aria-hidden="true">↗</span></a
       >
       <div class="sidebar-account">
         <span class="account-avatar">А</span>
@@ -253,7 +270,10 @@
             <h2>Ожидаем гостей</h2>
             <p>До пяти ближайших подтверждённых записей за выбранный день</p>
           </div>
-          <a class="secondary" href="/admin#bookings" (click)="select('bookings')"
+          <a
+            class="secondary"
+            href="/admin#bookings"
+            (click)="select('bookings')"
             >Все записи</a
           >
         </div>
@@ -273,7 +293,10 @@
             <span aria-hidden="true">◷</span>
             <h3>Время для новых встреч</h3>
             <p>На выбранный день нет подтверждённых записей.</p>
-            <a href="/admin#schedule" class="secondary" (click)="select('schedule')"
+            <a
+              href="/admin#schedule"
+              class="secondary"
+              (click)="select('schedule')"
               >Настроить расписание</a
             >
           </div>
@@ -442,7 +465,7 @@
       </div>
       @if(tab==='services'){
       <p class="muted mb-6">
-        Активные услуги отображаются на сайте и по команде /services в Telegram.
+        Активные услуги отображаются при записи в боте и по команде /services.
       </p>
       @for(s of data.catalog.services;track s.id){
       <div class="catalog-row">
@@ -655,10 +678,10 @@
               ></label
             ><label class="setting-toggle"
               ><span
-                ><strong>Показывать услуги в боте</strong
+                ><strong>Кнопка «Услуги и цены»</strong
                 ><small
-                  >Команда /services использует активные услуги из
-                  каталога</small
+                  >Отдельный просмотр каталога. Выбор услуги при записи остаётся
+                  доступен</small
                 ></span
               ><input
                 type="checkbox"
@@ -672,7 +695,7 @@
             <div class="panel-heading">
               <div>
                 <h2>Напоминания о визите</h2>
-                <p>Отправляются клиентам, которые подключили бота к записи</p>
+                <p>Подключаются автоматически при записи через Telegram</p>
               </div>
             </div>
             <label class="setting-toggle"
@@ -726,11 +749,18 @@
               {{bot.username?'@'+bot.username:'Бот студии'}}
             </div>
             <p>{{botPreview}}</p>
+            <div class="preview-actions">
+              <span>Записаться</span
+              ><span>Мои записи</span> @if(botDraft.services_enabled){<span
+                >Услуги и цены</span
+              >}
+              <span>Контакты студии</span>
+            </div>
             <span>только что</span>
           </div>
           <p class="settings-hint">
-            Клиент запускает бота по персональной ссылке после записи. До
-            запуска Telegram не разрешает отправлять ему сообщения.
+            Клиент выбирает услугу, специалиста и время прямо в Telegram.
+            Напоминания подключаются автоматически при записи.
           </p>
         </aside>
       </form>
@@ -758,7 +788,9 @@
         </button>
       </div>
       } } }
-      <p class="workspace-footer">Elyanora · забота о гостях начинается здесь</p>
+      <p class="workspace-footer">
+        Elyanora · забота о гостях начинается здесь
+      </p>
     </main>
   </div>
 </div>

@@ -173,6 +173,19 @@ func migrate(ctx context.Context, db *pgxpool.Pool) error {
 		}
 	}
 
+	if e = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version=5)").Scan(&applied); e != nil {
+		return e
+	}
+	if !applied {
+		sql, err := migrations.ReadFile("migrations/005_bot_booking.sql")
+		if err != nil {
+			return err
+		}
+		if _, e = tx.Exec(ctx, string(sql)); e != nil {
+			return e
+		}
+	}
+
 	return tx.Commit(ctx)
 }
 func main() {
@@ -244,12 +257,12 @@ func (a *app) routes() http.Handler {
 		}
 		respond(w, 200, map[string]string{"status": "ok"})
 	})
-	m.HandleFunc("GET /api/catalog", a.catalog)
-	m.HandleFunc("GET /api/slots", a.slots)
-	m.HandleFunc("POST /api/bookings", a.book)
-	m.HandleFunc("GET /api/manage/{token}", a.manage)
-	m.HandleFunc("POST /api/manage/{token}/cancel", a.cancel)
-	m.HandleFunc("POST /api/manage/{token}/reschedule", a.reschedule)
+	m.Handle("GET /api/admin/catalog", a.auth(http.HandlerFunc(a.catalog)))
+	m.Handle("GET /api/admin/slots", a.auth(http.HandlerFunc(a.slots)))
+	m.Handle("POST /api/admin/bookings", a.auth(http.HandlerFunc(a.book)))
+	m.Handle("GET /api/admin/manage/{token}", a.auth(http.HandlerFunc(a.manage)))
+	m.Handle("POST /api/admin/manage/{token}/cancel", a.auth(http.HandlerFunc(a.cancel)))
+	m.Handle("POST /api/admin/manage/{token}/reschedule", a.auth(http.HandlerFunc(a.reschedule)))
 	m.HandleFunc("POST /api/admin/login", a.login)
 	m.Handle("POST /api/admin/logout", a.auth(http.HandlerFunc(a.logout)))
 	m.Handle("GET /api/admin/dashboard", a.auth(http.HandlerFunc(a.dashboard)))

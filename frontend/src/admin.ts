@@ -278,6 +278,10 @@ export class AdminComponent {
     }
   }
   async reload() {
+    const config = await api<Catalog>("/admin/catalog");
+    if (this.catalog.timezone !== config.timezone)
+      this.date = salonDate(config.timezone);
+    this.catalog = config;
     this.data = await api<Dashboard>("/admin/dashboard?date=" + this.date);
     if (!this.shiftMaster)
       this.shiftMaster = this.data.catalog.specialists[0]?.id || 0;
@@ -386,7 +390,7 @@ export class AdminComponent {
       });
       await this.reload();
       this.editor = null;
-      this.notice = "Изменения сохранены. Каталог сайта и бота обновлён.";
+      this.notice = "Изменения сохранены. Каталог бота обновлён.";
     });
   }
   prices(s: Service) {
@@ -430,8 +434,7 @@ export class AdminComponent {
     return (
       this.botDraft.welcome_message +
       (this.botDraft.services_enabled ? "\n\n/services — услуги и цены" : "") +
-      "\n\nЗаписаться: " +
-      location.origin +
+      "\n\nНажмите «Записаться» — выберите услугу, мастера и удобное время прямо здесь." +
       (this.botDraft.contact_text ? "\n\n" + this.botDraft.contact_text : "")
     );
   }

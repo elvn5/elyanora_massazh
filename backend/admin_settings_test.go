@@ -39,7 +39,7 @@ func TestBotSettingsAuthorizationAndPersistence(t *testing.T) {
 	if code != 200 || bytes.Contains(raw, []byte("TELEGRAM_BOT_TOKEN")) {
 		t.Fatalf("unsafe settings response %s", raw)
 	}
-	code, raw = request(t, s, "GET", "/api/catalog", nil, nil)
+	code, raw = request(t, s, "GET", "/api/admin/catalog", nil, cookie)
 	if code != 200 || !bytes.Contains(raw, []byte(`"reminder_24h":false`)) {
 		t.Fatalf("public reminder settings: %s", raw)
 	}

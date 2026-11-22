@@ -66,14 +66,15 @@ func (a *app) deliverOne(ctx context.Context) bool {
 		case "reminder_2h":
 			title = "До вашего визита осталось 2 часа"
 		}
-		body := fmt.Sprintf("%s\n\n%s, %s\nМастер: %s\n%s (%s)\nПродолжительность: %d мин\nСтоимость: %d %s\n\nУправление записью (перенос и отмена):\n%s/?booking=%s\n\nСохраните эту персональную ссылку и не передавайте её другим.", title, b.Name, b.Service, b.Specialist, b.StartsAt.In(a.tz).Format("02.01.2006 в 15:04"), a.tz, int(b.EndsAt.Sub(b.StartsAt).Minutes()), b.Total, env("CURRENCY", "KGS"), a.base, b.Token)
+		reply := a.bookingReply(b)
+		body := title + "\n\n" + reply.Text
 		if settings.ContactText != "" {
 			body += "\n\n" + settings.ContactText
 		}
 		var sendErr error
 		if ch == "telegram" {
 			if b.TelegramChat != nil {
-				sendErr = a.sendTelegram(ctx, *b.TelegramChat, body)
+				sendErr = a.sendBotReply(ctx, *b.TelegramChat, botReply{Text: body, Buttons: reply.Buttons})
 			} else {
 				sendErr = fmt.Errorf("telegram not linked")
 			}
@@ -160,81 +161,47 @@ func (a *app) pollBot(ctx context.Context) error {
 		return e
 	}
 	var updates struct {
-		OK     bool `json:"ok"`
-		Result []struct {
-			ID      int64 `json:"update_id"`
-			Message struct {
-				Text string `json:"text"`
-				Chat struct {
-					ID   int64  `json:"id"`
-					Type string `json:"type"`
-				} `json:"chat"`
-			} `json:"message"`
-		} `json:"result"`
+		OK     bool             `json:"ok"`
+		Result []telegramUpdate `json:"result"`
 	}
-	e = a.telegram(ctx, "getUpdates", map[string]any{"offset": offset, "timeout": 25, "allowed_updates": []string{"message"}}, &updates)
+	e = a.telegram(ctx, "getUpdates", map[string]any{"offset": offset, "timeout": 25, "allowed_updates": []string{"message", "callback_query"}}, &updates)
 	if e != nil {
 		return e
 	}
-	settings, err := readBotSettings(ctx, a.db, false)
-	if err != nil {
-		return err
+	if !updates.OK {
+		return fmt.Errorf("telegram rejected updates")
 	}
 	for _, u := range updates.Result {
-		if u.Message.Chat.Type == "private" {
-			parts := strings.Fields(u.Message.Text)
-			text := botWelcome(settings, a.base)
-			if len(parts) == 2 && parts[0] == "/start" && validToken(parts[1]) {
-				text = "Ссылка недействительна или запись уже закрыта."
-				b, err := a.linkTelegram(ctx, parts[1], u.Message.Chat.ID)
-				if err == nil {
-					text = "Напоминания подключены.\nУправление записью: " + a.base + "/?booking=" + b.Token
-				}
-				if err != nil && err != pgx.ErrNoRows {
-					return err
-				}
-			} else if len(parts) > 0 && parts[0] == "/services" && !settings.ServicesEnabled {
-				text = "Каталог в боте временно скрыт. Услуги и запись доступны на сайте: " + a.base
-			} else if len(parts) > 0 && parts[0] == "/services" {
-				rows, err := a.db.Query(ctx, "SELECT name,prices FROM services WHERE active ORDER BY id")
-				if err != nil {
-					return err
-				}
-				text = "Услуги студии Elyanora:\n"
-				for rows.Next() {
-					var name string
-					var prices map[string]int
-					if err = rows.Scan(&name, &prices); err != nil {
-						rows.Close()
-						return err
-					}
-					text += "\n" + name
-					for _, d := range []string{"60", "90", "120"} {
-						if p, ok := prices[d]; ok {
-							text += fmt.Sprintf("\n%s мин — %d %s", d, p, env("CURRENCY", "KGS"))
-						}
-					}
-					text += "\n"
-				}
-				err = rows.Err()
-				rows.Close()
-				if err != nil {
-					return err
-				}
-				text += "\nЗапись и свободные окна: " + a.base
+		chat, _, _, valid := u.identity()
+		if u.Callback != nil {
+			var result any
+			// Acknowledge even expired buttons so the Telegram spinner stops.
+			_ = a.telegram(ctx, "answerCallbackQuery", map[string]any{"callback_query_id": u.Callback.ID}, &result)
+		}
+		if valid {
+			reply, err := a.processBotUpdate(ctx, u)
+			if err != nil {
+				return err
 			}
-			// A blocked chat must not prevent all other users from receiving bot replies.
-			for _, chunk := range telegramChunks(text) {
-				if e = a.sendTelegram(ctx, u.Message.Chat.ID, chunk); e != nil {
-					slog.Warn("telegram reply failed", "update", u.ID)
-					break
-				}
+			if err = a.sendBotReply(ctx, chat, reply); err != nil {
+				// A blocked chat must not prevent updates from other guests.
+				slog.Warn("telegram reply failed", "update", u.ID)
 			}
 		}
 		if _, e = conn.Exec(ctx, "UPDATE bot_state SET offset_id=$1 WHERE id=1", u.ID+1); e != nil {
 			return e
 		}
 	}
+	// Telegram retains updates for at most 24h; retain receipts for a full week.
+	_, e = conn.Exec(ctx, "DELETE FROM bot_updates WHERE created_at<now()-interval '7 days'")
+	if e != nil {
+		return e
+	}
+	_, e = conn.Exec(ctx, "DELETE FROM bot_sessions WHERE updated_at<now()-interval '30 days'")
+	if e != nil {
+		return e
+	}
+
 	return nil
 }
 
@@ -277,6 +244,20 @@ func (a *app) resolveAndPollBot(ctx context.Context) error {
 		if err := a.resolveBot(ctx); err != nil {
 			return err
 		}
+		commands := []map[string]string{
+			{"command": "start", "description": "Главное меню Elyanora"},
+			{"command": "book", "description": "Записаться на массаж"},
+			{"command": "bookings", "description": "Мои записи, перенос и отмена"},
+			{"command": "services", "description": "Услуги и цены"},
+			{"command": "menu", "description": "Начать заново / главное меню"},
+		}
+		var result struct {
+			OK bool `json:"ok"`
+		}
+		if err := a.telegram(ctx, "setMyCommands", map[string]any{"commands": commands}, &result); err != nil || !result.OK {
+			a.botName.Store("")
+			return fmt.Errorf("telegram command setup failed")
+		}
 	}
 	return a.pollBot(ctx)
 }
@@ -311,9 +292,41 @@ func botWelcome(settings botSettings, base string) string {
 	if settings.ServicesEnabled {
 		text += "\n\n/services — услуги и цены"
 	}
-	text += "\n\nЗаписаться: " + base
+	text += "\n\nНажмите «Записаться» — выберите услугу, мастера и удобное время прямо здесь."
 	if settings.ContactText != "" {
 		text += "\n\n" + settings.ContactText
 	}
 	return text
+}
+
+func (a *app) sendBotReply(ctx context.Context, chat int64, r botReply) error {
+	if r.RemoveKeyboard {
+		var result struct {
+			OK bool `json:"ok"`
+		}
+		if e := a.telegram(ctx, "sendMessage", map[string]any{"chat_id": chat, "text": "Продолжаем.", "reply_markup": map[string]bool{"remove_keyboard": true}}, &result); e != nil {
+			return e
+		}
+	}
+	chunks := telegramChunks(r.Text)
+	for i, text := range chunks {
+		payload := map[string]any{"chat_id": chat, "text": text, "disable_web_page_preview": true}
+		if i == len(chunks)-1 {
+			if r.Contact {
+				payload["reply_markup"] = map[string]any{"keyboard": [][]map[string]any{{{"text": "Отправить мой телефон", "request_contact": true}}, {{"text": "Главное меню"}}}, "resize_keyboard": true, "one_time_keyboard": true}
+			} else if len(r.Buttons) > 0 {
+				payload["reply_markup"] = map[string]any{"inline_keyboard": r.Buttons}
+			}
+		}
+		var result struct {
+			OK bool `json:"ok"`
+		}
+		if e := a.telegram(ctx, "sendMessage", payload, &result); e != nil {
+			return e
+		}
+		if !result.OK {
+			return fmt.Errorf("telegram rejected reply")
+		}
+	}
+	return nil
 }

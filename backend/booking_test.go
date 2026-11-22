@@ -26,6 +26,10 @@ func TestValidation(t *testing.T) {
 		t.Fatal("duration validation")
 	}
 }
+
+// Legacy booking handlers are now admin-only; core regression tests authenticate them.
+var testAdminCookies sync.Map
+
 func fixture(t *testing.T) (*app, *httptest.Server, time.Time) {
 	t.Helper()
 	dsn := os.Getenv("TEST_DATABASE_URL")
@@ -47,7 +51,7 @@ func fixture(t *testing.T) (*app, *httptest.Server, time.Time) {
 	if e = migrate(ctx, db); e != nil {
 		t.Fatal(e)
 	}
-	_, e = db.Exec(ctx, "TRUNCATE jobs,bookings,shifts,sessions RESTART IDENTITY CASCADE")
+	_, e = db.Exec(ctx, "TRUNCATE bot_sessions,bot_updates,jobs,bookings,shifts,sessions RESTART IDENTITY CASCADE")
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -65,11 +69,18 @@ func fixture(t *testing.T) (*app, *httptest.Server, time.Time) {
 	pw, _ := bcrypt.GenerateFromPassword([]byte("a-test-password"), bcrypt.MinCost)
 	a := &app{db: db, tz: tz, base: "http://localhost:4200", password: pw, limiter: &rateLimiter{buckets: map[string]bucket{}}}
 	srv := httptest.NewServer(a.routes())
-	t.Cleanup(func() { srv.Close(); db.Close() })
+	testAdminCookies.Store(srv, loginAdmin(t, srv))
+	t.Cleanup(func() { testAdminCookies.Delete(srv); srv.Close(); db.Close() })
 	return a, srv, start
 }
+func testCookie(s *httptest.Server) *http.Cookie {
+	c, _ := testAdminCookies.Load(s)
+	return c.(*http.Cookie)
+}
+
 func request(t *testing.T, s *httptest.Server, method, path string, body any, cookie *http.Cookie) (int, []byte) {
 	t.Helper()
+
 	raw, _ := json.Marshal(body)
 	req, _ := http.NewRequest(method, s.URL+path, bytes.NewReader(raw))
 	req.Header.Set("Content-Type", "application/json")
@@ -90,7 +101,7 @@ func selectionAt(start time.Time) selection {
 }
 func createBooking(t *testing.T, s *httptest.Server, in selection) booking {
 	t.Helper()
-	code, raw := request(t, s, "POST", "/api/bookings", in, nil)
+	code, raw := request(t, s, "POST", "/api/admin/bookings", in, testCookie(s))
 	if code != 201 {
 		t.Fatalf("create: %d %s", code, raw)
 	}
@@ -109,7 +120,7 @@ func TestConcurrentBookingAndCancellation(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			code, _ := request(t, s, "POST", "/api/bookings", in, nil)
+			code, _ := request(t, s, "POST", "/api/admin/bookings", in, testCookie(s))
 			switch code {
 			case 201:
 				created.Add(1)
@@ -128,7 +139,7 @@ func TestConcurrentBookingAndCancellation(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	code, _ := request(t, s, "GET", "/api/manage/"+b.Token, nil, nil)
+	code, _ := request(t, s, "GET", "/api/admin/manage/"+b.Token, nil, testCookie(s))
 	if code != 200 {
 		t.Fatal(code)
 	}
@@ -139,7 +150,7 @@ func TestConcurrentBookingAndCancellation(t *testing.T) {
 	}
 	createBooking(t, s, selectionAt(start.Add(time.Hour)))
 	for i := 0; i < 2; i++ {
-		code, raw := request(t, s, "POST", "/api/manage/"+b.Token+"/cancel", map[string]any{}, nil)
+		code, raw := request(t, s, "POST", "/api/admin/manage/"+b.Token+"/cancel", map[string]any{}, testCookie(s))
 		if code != 200 {
 			t.Fatalf("cancel %d %s", code, raw)
 		}
@@ -155,13 +166,13 @@ func TestSlotsExtrasAndReschedule(t *testing.T) {
 		t.Fatal("wrong extra quote")
 	}
 	other := selectionAt(start.Add(time.Hour))
-	code, _ := request(t, s, "POST", "/api/bookings", other, nil)
+	code, _ := request(t, s, "POST", "/api/admin/bookings", other, testCookie(s))
 	if code != 409 {
 		t.Fatal("extra minutes didn't block overlap")
 	}
 	other.StartsAt = start.Add(75 * time.Minute)
 	createBooking(t, s, other)
-	code, raw := request(t, s, "GET", "/api/slots?specialist_id=1&service_id=1&duration=60&date="+start.Format("2006-01-02"), nil, nil)
+	code, raw := request(t, s, "GET", "/api/admin/slots?specialist_id=1&service_id=1&duration=60&date="+start.Format("2006-01-02"), nil, testCookie(s))
 	if code != 200 {
 		t.Fatalf("slots: %s", raw)
 	}
@@ -180,7 +191,7 @@ func TestSlotsExtrasAndReschedule(t *testing.T) {
 		t.Fatal(e)
 	}
 	newTime := start.Add(4 * time.Hour)
-	code, raw = request(t, s, "POST", "/api/manage/"+b.Token+"/reschedule", map[string]any{"starts_at": newTime}, nil)
+	code, raw = request(t, s, "POST", "/api/admin/manage/"+b.Token+"/reschedule", map[string]any{"starts_at": newTime}, testCookie(s))
 	if code != 200 {
 		t.Fatalf("reschedule %d %s", code, raw)
 	}
@@ -197,7 +208,7 @@ func TestSlotsExtrasAndReschedule(t *testing.T) {
 		t.Fatalf("invalid reminders: jobs=%d old=%d", jobs, old)
 	}
 	other.StartsAt = newTime.Add(30 * time.Minute)
-	code, _ = request(t, s, "POST", "/api/bookings", other, nil)
+	code, _ = request(t, s, "POST", "/api/admin/bookings", other, testCookie(s))
 	if code != 409 {
 		t.Fatal("reschedule didn't reserve time")
 	}
@@ -213,7 +224,7 @@ func TestAvailabilityBoundaries(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			in := selectionAt(start)
 			tc.edit(&in)
-			code, raw := request(t, s, "POST", "/api/bookings", in, nil)
+			code, raw := request(t, s, "POST", "/api/admin/bookings", in, testCookie(s))
 			if code != tc.status {
 				t.Fatalf("%d %s", code, raw)
 			}
@@ -312,7 +323,7 @@ func TestNotificationWorkerAndStaleJobs(t *testing.T) {
 	if count.Load() != 1 {
 		t.Fatalf("confirmation delivered %d times", count.Load())
 	}
-	code, _ := request(t, s, "POST", "/api/manage/"+b.Token+"/cancel", nil, nil)
+	code, _ := request(t, s, "POST", "/api/admin/manage/"+b.Token+"/cancel", nil, testCookie(s))
 	if code != 200 {
 		t.Fatal(code)
 	}
@@ -369,7 +380,7 @@ func TestTelegramBindingAndDiscovery(t *testing.T) {
 	if err := a.resolveBot(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	code, raw := request(t, s, "GET", "/api/catalog", nil, nil)
+	code, raw := request(t, s, "GET", "/api/admin/catalog", nil, testCookie(s))
 	if code != 200 || !bytes.Contains(raw, []byte(`"telegram_bot":"test_studio_bot"`)) {
 		t.Fatalf("bot discovery: %s", raw)
 	}
@@ -392,7 +403,7 @@ func TestTelegramBindingAndDiscovery(t *testing.T) {
 	if jobs != 3 {
 		t.Fatalf("want confirmation and two reminders, got %d", jobs)
 	}
-	code, raw = request(t, s, "GET", "/api/manage/"+b.Token, nil, nil)
+	code, raw = request(t, s, "GET", "/api/admin/manage/"+b.Token, nil, testCookie(s))
 	if code != 200 || bytes.Contains(raw, []byte(`"email"`)) {
 		t.Fatal("email still exposed")
 	}
