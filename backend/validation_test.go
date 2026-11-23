@@ -8,7 +8,28 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	"golang.org/x/crypto/bcrypt"
 )
+
+func TestAdminPasswordAnyLength(t *testing.T) {
+	long := strings.Repeat("пароль-", 200)
+	for _, pw := range []string{"a", "1234", strings.Repeat("Ж", 36), strings.Repeat("x", 73), long} {
+		h, e := bcrypt.GenerateFromPassword(passwordInput(pw), bcrypt.MinCost)
+		if e != nil {
+			t.Fatalf("len %d: %v", len(pw), e)
+		}
+		if bcrypt.CompareHashAndPassword(h, passwordInput(pw)) != nil {
+			t.Fatalf("len %d: correct password rejected", len(pw))
+		}
+		if bcrypt.CompareHashAndPassword(h, passwordInput(pw+"x")) == nil || bcrypt.CompareHashAndPassword(h, passwordInput(pw[:len(pw)-1])) == nil {
+			t.Fatalf("len %d: wrong password accepted", len(pw))
+		}
+	}
+	// Passwords up to 72 bytes are unchanged, so existing ADMIN_PASSWORD_HASH values keep working.
+	if string(passwordInput(strings.Repeat("x", 72))) != strings.Repeat("x", 72) {
+		t.Fatal("short password altered")
+	}
+}
 
 func TestNameLengthCountsCharacters(t *testing.T) {
 	cases := []struct {

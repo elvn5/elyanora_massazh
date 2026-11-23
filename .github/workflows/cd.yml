@@ -87,16 +87,13 @@ jobs:
           fi
           # A secret pasted in the GitHub UI often ends with a line break.
           while [[ "$ADMIN_PASSWORD" == *$'\n' || "$ADMIN_PASSWORD" == *$'\r' ]]; do ADMIN_PASSWORD=${ADMIN_PASSWORD%?}; done
-          admin_length=$(LC_ALL=C; printf '%s' "${#ADMIN_PASSWORD}")
           admin_problem=''
-          if [ "$admin_length" -eq 0 ]; then admin_problem='it is empty or not set'
-          elif [ "$admin_length" -lt 12 ]; then admin_problem='it is shorter than 12 bytes'
-          elif [ "$admin_length" -gt 72 ]; then admin_problem='it is longer than 72 bytes (Cyrillic letters take 2 bytes)'
+          if [ -z "$ADMIN_PASSWORD" ]; then admin_problem='it is empty or not set'
           elif [[ "$ADMIN_PASSWORD" == *"'"* ]]; then admin_problem='it contains a single quote'
           elif [[ "$ADMIN_PASSWORD" =~ [[:cntrl:]] ]]; then admin_problem='it contains a line break, tab or other control character'
           fi
           if [ -n "$admin_problem" ]; then
-            echo "The ADMIN_PASSWORD GitHub Secret is invalid: $admin_problem. Use 12-72 bytes, no single quotes or line breaks." >&2
+            echo "The ADMIN_PASSWORD GitHub Secret is invalid: $admin_problem. Any length is allowed; avoid single quotes and line breaks." >&2
             exit 1
           fi
           server() { ssh -T "${DEPLOY_USER}@${DEPLOY_HOST}" "$@"; }

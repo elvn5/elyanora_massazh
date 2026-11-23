@@ -26,7 +26,7 @@ cp .env.example .env
 # Сгенерируйте два разных секрета и запишите в POSTGRES_PASSWORD / ADMIN_PASSWORD:
 openssl rand -hex 24
 openssl rand -hex 24
-# ADMIN_PASSWORD: 12–72 байта; POSTGRES_PASSWORD: hex / латинские буквы и цифры.
+# ADMIN_PASSWORD: любой длины; POSTGRES_PASSWORD: hex / латинские буквы и цифры.
 docker compose up --build -d --wait
 ```
 
@@ -43,7 +43,7 @@ docker compose up --build -d --wait
 | Переменная | Назначение |
 | --- | --- |
 | `PUBLIC_URL` | Точный origin сайта, без пути: например `https://booking.example.com`. Используется для проверки Origin в админке. Клиентских ссылок на сайт бот не отправляет. |
-| `ADMIN_PASSWORD` | Пароль администратора, 12–72 байта; хешируется bcrypt при старте. |
+| `ADMIN_PASSWORD` | Пароль администратора любой длины; хешируется bcrypt при старте (пароли длиннее 72 байт сначала сжимаются SHA-256). |
 | `ADMIN_PASSWORD_HASH` | Альтернатива для прямого запуска Go: готовый bcrypt-хеш. Имеет приоритет над паролем. |
 | `SALON_TIMEZONE` | IANA timezone, по умолчанию `Asia/Bishkek`. |
 | `CURRENCY` | Обозначение валюты; по умолчанию `KGS`. Цены целочисленные в основных единицах. |
@@ -127,7 +127,7 @@ TEST_DATABASE_URL='postgres://USER:PASSWORD@127.0.0.1:5432/masajka_test?sslmode=
 2. Создайте `/opt/masajka/.env`: реальные секреты, `PUBLIC_URL=https://...`. Токен Telegram и пароль администратора CD добавит из GitHub Secrets (`telegram.env` и `admin.env`, права 0600); указывать их в серверном `.env` не требуется — значение из `admin.env` в любом случае имеет приоритет. CD передаёт краткоживущий `GITHUB_TOKEN` с `packages:read` через SSH stdin; временная конфигурация Docker удаляется после деплоя.
 3. Настройте DNS и HTTPS reverse proxy на `127.0.0.1:8088`. БД и API не публикуют порты наружу.
 4. Установите `deploy/release.sh` как `/opt/masajka/release.sh`, `deploy/ssh-gateway.sh` как `/opt/masajka/ssh-gateway.sh` с правами 0700. Добавьте отдельный публичный ключ деплоя в `authorized_keys` с префиксом `restrict,command="/opt/masajka/ssh-gateway.sh"`. Ключ не даёт интерактивную оболочку и принимает только команды деплоя этого приложения. Вручную скрипты ставятся только один раз. Дальше их обновляет каждый релиз: одноразовый сервис `deploy-tools` из проверенного API-образа копирует `release.sh` и `ssh-gateway.sh` текущего коммита в `/opt/masajka` (`deploy/install-tools.sh`), а при откате возвращает версию предыдущего релиза. Если на сервере gateway старее команды `admin-password`, CD сначала выкатывает релиз, обновляющий скрипты, а затем применяет пароль и выкатывает ещё раз. Заходить на сервер для этого не нужно. Ключ деплоя и раньше мог запускать произвольные контейнеры через загружаемый `compose.yaml`, так что самообновление скриптов не расширяет его права.
-5. В GitHub добавьте secrets: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `TELEGRAM_BOT_TOKEN`, `ADMIN_PASSWORD`, `DEPLOY_KNOWN_HOSTS` (ключ хоста, проверенный отдельно). `ADMIN_PASSWORD` — 12–72 байта, без одинарных кавычек и переносов строк; чтобы сменить пароль админки, обновите secret и перезапустите деплой. Пароль хранится именно в Secrets, а не в Variables: значения Variables видны всем, у кого есть доступ к репозиторию, и не маскируются в логах. Не используется небезопасный `StrictHostKeyChecking=no`.
+5. В GitHub добавьте secrets: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `TELEGRAM_BOT_TOKEN`, `ADMIN_PASSWORD`, `DEPLOY_KNOWN_HOSTS` (ключ хоста, проверенный отдельно). `ADMIN_PASSWORD` — любой длины, без одинарных кавычек и переносов строк; чтобы сменить пароль админки, обновите secret и перезапустите деплой. Пароль хранится именно в Secrets, а не в Variables: значения Variables видны всем, у кого есть доступ к репозиторию, и не маскируются в логах. Не используется небезопасный `StrictHostKeyChecking=no`.
 6. Push в `main` запустит пайплайн. `deploy/release.sh` выполняет pull, запуск и health checks. При ошибке пытается вернуть предыдущие образы и Compose-файл. Миграции будущих версий должны сохранять обратную совместимость; автоматического отката данных нет.
 
 Публикация в GHCR и деплой запускаются автоматически после успешного CI в `main` при `DEPLOY_ENABLED=true`.

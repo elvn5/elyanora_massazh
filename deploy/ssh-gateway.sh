@@ -13,11 +13,9 @@ case "${SSH_ORIGINAL_COMMAND:-}" in
     ;;
   admin-password)
     IFS= read -r password
-    # 12-72 bytes (bcrypt limit); no quote or control characters, so the
+    # Any non-empty length; no quote or control characters, so the
     # single-quoted env-file value stays literal and is never interpolated.
-    length=$(LC_ALL=C; printf '%s' "${#password}")
-    [ "$length" -ge 12 ] && [ "$length" -le 72 ] || exit 1
-    [[ "$password" != *"'"* && ! "$password" =~ [[:cntrl:]] ]] || exit 1
+    [[ -n "$password" && "$password" != *"'"* && ! "$password" =~ [[:cntrl:]] ]] || exit 1
     printf "ADMIN_PASSWORD='%s'\n" "$password" > admin.env.next
     mv admin.env.next admin.env
     ;;

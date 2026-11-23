@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"embed"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -207,7 +208,7 @@ func migrate(ctx context.Context, db *pgxpool.Pool) error {
 }
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "hash-password" {
-		b, e := bcrypt.GenerateFromPassword([]byte(os.Getenv("ADMIN_PASSWORD")), 12)
+		b, e := bcrypt.GenerateFromPassword(passwordInput(os.Getenv("ADMIN_PASSWORD")), 12)
 		if e != nil {
 			panic(e)
 		}
@@ -231,10 +232,10 @@ func main() {
 	password := os.Getenv("ADMIN_PASSWORD_HASH")
 	if password == "" {
 		plain := os.Getenv("ADMIN_PASSWORD")
-		if len(plain) < 12 {
-			panic("set ADMIN_PASSWORD (at least 12 characters) or ADMIN_PASSWORD_HASH")
+		if plain == "" {
+			panic("set ADMIN_PASSWORD or ADMIN_PASSWORD_HASH")
 		}
-		b, e := bcrypt.GenerateFromPassword([]byte(plain), 12)
+		b, e := bcrypt.GenerateFromPassword(passwordInput(plain), 12)
 		if e != nil {
 			panic(e)
 		}
@@ -322,7 +323,7 @@ func (a *app) login(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &in) {
 		return
 	}
-	if bcrypt.CompareHashAndPassword(a.password, []byte(in.Password)) != nil {
+	if in.Password == "" || bcrypt.CompareHashAndPassword(a.password, passwordInput(in.Password)) != nil {
 		fail(w, 401, "Неверный пароль")
 		return
 	}
@@ -385,6 +386,18 @@ func clientIP(r *http.Request) string {
 		return r.RemoteAddr
 	}
 	return host
+}
+
+// passwordInput lets the admin password be any length: bcrypt only accepts
+// 72 bytes, so longer passwords are first reduced to a SHA-256 digest
+// (44 base64 bytes). Passwords up to 72 bytes are used as-is, which keeps
+// existing ADMIN_PASSWORD_HASH values valid.
+func passwordInput(p string) []byte {
+	if len(p) <= 72 {
+		return []byte(p)
+	}
+	sum := sha256.Sum256([]byte(p))
+	return []byte(base64.StdEncoding.EncodeToString(sum[:]))
 }
 func validToken(t string) bool { b, e := hex.DecodeString(t); return e == nil && len(b) == 32 }
 func parseID(s string) int64   { n, _ := strconv.ParseInt(s, 10, 64); return n }
