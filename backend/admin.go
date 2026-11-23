@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/jackc/pgx/v5"
 	"net/http"
+	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 type shift struct {
@@ -95,7 +97,8 @@ func (a *app) saveCatalog(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &in) {
 		return
 	}
-	if len(in.Name) < 2 || len(in.Name) > 100 || len(in.Description) > 1000 || len(in.Bio) > 1000 {
+	in.Name = strings.TrimSpace(in.Name)
+	if !validName(in.Name, 100) || !validText(in.Description, 1000) || !validText(in.Bio, 1000) {
 		fail(w, 400, "Название: от 2 до 100 символов. Описание: до 1000.")
 		return
 	}

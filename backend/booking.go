@@ -60,15 +60,12 @@ func scanBooking(row pgx.Row) (b booking, e error) {
 }
 func (a *app) catalog(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	ss := []specialist{}
-	sv := []service{}
-	ex := []extra{}
 	rows, e := a.db.Query(ctx, "SELECT id,name,bio,active FROM specialists WHERE active ORDER BY id")
 	if e != nil {
 		dbError(w, e)
 		return
 	}
-	ss, e = pgx.CollectRows(rows, pgx.RowToStructByPos[specialist])
+	ss, e := pgx.CollectRows(rows, pgx.RowToStructByPos[specialist])
 	if e != nil {
 		dbError(w, e)
 		return
@@ -78,7 +75,7 @@ func (a *app) catalog(w http.ResponseWriter, r *http.Request) {
 		dbError(w, e)
 		return
 	}
-	sv, e = pgx.CollectRows(rows, pgx.RowToStructByPos[service])
+	sv, e := pgx.CollectRows(rows, pgx.RowToStructByPos[service])
 	if e != nil {
 		dbError(w, e)
 		return
@@ -88,7 +85,7 @@ func (a *app) catalog(w http.ResponseWriter, r *http.Request) {
 		dbError(w, e)
 		return
 	}
-	ex, e = pgx.CollectRows(rows, pgx.RowToStructByPos[extra])
+	ex, e := pgx.CollectRows(rows, pgx.RowToStructByPos[extra])
 	if e != nil {
 		dbError(w, e)
 		return
@@ -230,7 +227,7 @@ func (a *app) book(w http.ResponseWriter, r *http.Request) {
 	}
 	in.Name = strings.TrimSpace(in.Name)
 	in.Phone = strings.TrimSpace(in.Phone)
-	if !in.Consent || len(in.Name) < 2 || len(in.Name) > 100 || len(in.Phone) < 7 || len(in.Phone) > 30 {
+	if !in.Consent || !validClientName(in.Name) || !validPhone(in.Phone) {
 		fail(w, 400, "Укажите имя, телефон и согласие на обработку данных")
 		return
 	}

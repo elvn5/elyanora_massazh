@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -373,9 +372,7 @@ func (a *app) advanceBot(ctx context.Context, tx pgx.Tx, u telegramUpdate, chat 
 	s.Revision = token()[:12]
 	return a.renderBotStep(ctx, tx, chat, s, u)
 }
-func validClientName(s string) bool {
-	return utf8.RuneCountInString(s) >= 2 && len(s) <= 100 && !strings.ContainsAny(s, "\n\r")
-}
+func validClientName(s string) bool { return validName(s, 100) }
 func validPhone(s string) bool {
 	digits := 0
 	for _, r := range s {
@@ -728,7 +725,7 @@ type botInputError string
 
 func (e botInputError) Error() string { return string(e) }
 func (a *app) botSlots(ctx context.Context, tx pgx.Tx, chat int64, s *botSession) ([]time.Time, error) {
-	mins := s.Minutes
+	var mins int
 	sid := s.Selection.SpecialistID
 	if s.BookingID != 0 {
 		b, e := a.ownedBooking(ctx, tx, chat, s.BookingID, false)

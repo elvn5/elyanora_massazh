@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -22,6 +23,8 @@ import (
 	"syscall"
 	"time"
 	_ "time/tzdata"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -308,7 +311,8 @@ func (a *app) routes() http.Handler {
 	})
 }
 func (a *app) login(w http.ResponseWriter, r *http.Request) {
-	if !a.limiter.allow("login", 10) {
+	// Per-client limit so one guesser cannot lock the admin out; the global cap bounds distributed guessing.
+	if !a.limiter.allow("login:"+clientIP(r), 10) || !a.limiter.allow("login", 100) {
 		fail(w, 429, "Слишком много попыток. Подождите минуту.")
 		return
 	}
@@ -356,6 +360,31 @@ func (a *app) logout(w http.ResponseWriter, r *http.Request) {
 	}
 	http.SetCookie(w, &http.Cookie{Name: "session", Value: "", Path: "/api/admin", HttpOnly: true, Secure: a.secure, SameSite: http.SameSiteStrictMode, MaxAge: -1})
 	respond(w, 200, map[string]bool{"ok": true})
+}
+
+// validName counts characters, not bytes, so Cyrillic names get the full limit.
+// Control characters are rejected: NUL cannot be stored in PostgreSQL text/jsonb.
+func validName(s string, max int) bool {
+	n := utf8.RuneCountInString(s)
+	return n >= 2 && n <= max && !strings.ContainsFunc(s, unicode.IsControl)
+}
+
+// validText allows line breaks in multi-line fields but no other control characters.
+func validText(s string, max int) bool {
+	return utf8.RuneCountInString(s) <= max && !strings.ContainsFunc(s, func(r rune) bool { return unicode.IsControl(r) && r != '\n' && r != '\r' && r != '\t' })
+}
+
+// clientIP trusts X-Real-IP because the API is reachable only through nginx,
+// which overwrites that header with the peer address (deploy/nginx.conf).
+func clientIP(r *http.Request) string {
+	if ip := strings.TrimSpace(r.Header.Get("X-Real-IP")); ip != "" {
+		return ip
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
 }
 func validToken(t string) bool { b, e := hex.DecodeString(t); return e == nil && len(b) == 32 }
 func parseID(s string) int64   { n, _ := strconv.ParseInt(s, 10, 64); return n }

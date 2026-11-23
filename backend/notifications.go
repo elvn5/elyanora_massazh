@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 func (a *app) worker(ctx context.Context) {
@@ -117,16 +119,6 @@ func (a *app) telegram(ctx context.Context, method string, payload any, out any)
 	}
 	return json.NewDecoder(io.LimitReader(res.Body, 1<<20)).Decode(out)
 }
-func (a *app) sendTelegram(ctx context.Context, chat int64, text string) error {
-	var res struct {
-		OK bool `json:"ok"`
-	}
-	e := a.telegram(ctx, "sendMessage", map[string]any{"chat_id": chat, "text": text, "disable_web_page_preview": true}, &res)
-	if e == nil && !res.OK {
-		return fmt.Errorf("telegram rejected message")
-	}
-	return e
-}
 
 func (a *app) sendBookingTopic(ctx context.Context, b booking) error {
 	text := fmt.Sprintf("🆕 Новая запись №%d\n\nКлиент: %s\nТелефон: %s\nУслуга: %s\nМастер: %s\nДата и время: %s (%s)\nПродолжительность: %d мин\nСтоимость: %d %s", b.ID, b.Name, b.Phone, b.Service, b.Specialist, b.StartsAt.In(a.tz).Format("02.01.2006 в 15:04"), a.tz, int(b.EndsAt.Sub(b.StartsAt).Minutes()), b.Total, env("CURRENCY", "KGS"))
@@ -178,7 +170,11 @@ func (a *app) pollBot(ctx context.Context) error {
 			return nil
 		}
 	}
-	defer conn.Exec(context.Background(), "SELECT pg_advisory_unlock(814730)")
+	defer func() {
+		if _, err := conn.Exec(context.Background(), "SELECT pg_advisory_unlock(814730)"); err != nil {
+			slog.Warn("telegram polling lock release failed", "error", err)
+		}
+	}()
 	var offset int64
 	if e = conn.QueryRow(ctx, "SELECT offset_id FROM bot_state WHERE id=1").Scan(&offset); e != nil {
 		return e
@@ -203,8 +199,13 @@ func (a *app) pollBot(ctx context.Context) error {
 		}
 		if valid {
 			reply, err := a.processBotUpdate(ctx, u)
-			if err != nil {
+			if err != nil && !permanentUpdateError(err) {
 				return err
+			}
+			if err != nil {
+				// Retrying would fail the same way and block every other chat behind this update.
+				slog.Error("telegram update skipped", "update", u.ID, "error", err)
+				reply = botReply{Text: "Не удалось обработать сообщение. Попробуйте ещё раз или откройте /menu."}
 			}
 			if err = a.sendBotReply(ctx, chat, reply); err != nil {
 				// A blocked chat must not prevent updates from other guests.
@@ -352,4 +353,15 @@ func (a *app) sendBotReply(ctx context.Context, chat int64, r botReply) error {
 		}
 	}
 	return nil
+}
+
+// permanentUpdateError reports database errors caused by the update's own data:
+// data exceptions (class 22, e.g. NUL in jsonb) and not-null/foreign-key/check
+// violations. Connection errors and races (exclusion, unique) stay retryable.
+func permanentUpdateError(err error) bool {
+	var pg *pgconn.PgError
+	if !errors.As(err, &pg) {
+		return false
+	}
+	return strings.HasPrefix(pg.Code, "22") || pg.Code == "23502" || pg.Code == "23503" || pg.Code == "23514"
 }
