@@ -40,12 +40,25 @@ services:
       TELEGRAM_BOOKINGS_THREAD_ID: ${TELEGRAM_BOOKINGS_THREAD_ID:-2}
     depends_on:
       db: {condition: service_healthy}
+      deploy-tools: {condition: service_completed_successfully}
     healthcheck:
       test: [CMD, wget, -q, -O, /dev/null, 'http://127.0.0.1:8080/api/health']
       interval: 10s
       timeout: 5s
       retries: 10
     restart: unless-stopped
+  # One-shot: on the server it refreshes release.sh and ssh-gateway.sh next to
+  # this file from the API image; locally it exits without touching anything.
+  deploy-tools:
+    image: ${API_IMAGE:-masajka-api:local}
+    # Same image as api: built locally, already pulled by release.sh on the server.
+    pull_policy: never
+    user: '0:0'
+    entrypoint: [/bin/sh, /deploy-tools/install-tools.sh]
+    network_mode: none
+    restart: 'no'
+    volumes:
+      - ./:/target
   web:
     mem_limit: 128m
     cpus: 0.5

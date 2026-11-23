@@ -11,12 +11,22 @@ case "${SSH_ORIGINAL_COMMAND:-}" in
     printf 'TELEGRAM_BOT_TOKEN=%s\n' "$token" > telegram.env.next
     mv telegram.env.next telegram.env
     ;;
+  admin-password)
+    IFS= read -r password
+    # 12-72 bytes (bcrypt limit); no quote or control characters, so the
+    # single-quoted env-file value stays literal and is never interpolated.
+    length=$(LC_ALL=C; printf '%s' "${#password}")
+    [ "$length" -ge 12 ] && [ "$length" -le 72 ] || exit 1
+    [[ "$password" != *"'"* && ! "$password" =~ [[:cntrl:]] ]] || exit 1
+    printf "ADMIN_PASSWORD='%s'\n" "$password" > admin.env.next
+    mv admin.env.next admin.env
+    ;;
   compose)
     temp=$(mktemp /opt/masajka/compose-upload.XXXXXX.yaml)
     trap 'rm -f "$temp"' EXIT
     head -c 65537 > "$temp"
     [ "$(wc -c < "$temp")" -le 65536 ]
-    docker compose -p masajka --env-file .env --env-file telegram.env -f "$temp" config --quiet
+    docker compose -p masajka --env-file .env --env-file telegram.env --env-file admin.env -f "$temp" config --quiet
     mv "$temp" compose.yaml.next
     ;;
   deploy\ *)
@@ -29,5 +39,5 @@ case "${SSH_ORIGINAL_COMMAND:-}" in
     docker login ghcr.io --username elvn5 --password-stdin >/dev/null 2>&1
     /opt/masajka/release.sh elvn5 "$sha"
     ;;
-  *) echo 'Only token, compose and deploy <commit SHA> commands are allowed.' >&2; exit 1 ;;
+  *) echo 'Only token, admin-password, compose and deploy <commit SHA> commands are allowed.' >&2; exit 1 ;;
 esac

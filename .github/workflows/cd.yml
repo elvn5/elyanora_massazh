@@ -78,15 +78,36 @@ jobs:
           IMAGE_OWNER: ${{ needs.publish.outputs.owner }}
           IMAGE_SHA: ${{ github.event.workflow_run.head_sha }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
           GHCR_READ_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [[ ! "$TELEGRAM_BOT_TOKEN" =~ ^[0-9]+:[A-Za-z0-9_-]+$ ]]; then
             echo 'Set the TELEGRAM_BOT_TOKEN GitHub Secret before deployment.' >&2
             exit 1
           fi
-          printf '%s\n' "$TELEGRAM_BOT_TOKEN" | ssh -T "${DEPLOY_USER}@${DEPLOY_HOST}" token
-          ssh -T "${DEPLOY_USER}@${DEPLOY_HOST}" compose < compose.yaml
-          printf '%s\n' "$GHCR_READ_TOKEN" | ssh -T "${DEPLOY_USER}@${DEPLOY_HOST}" "deploy $IMAGE_SHA"
+          admin_length=$(LC_ALL=C; printf '%s' "${#ADMIN_PASSWORD}")
+          if [ "$admin_length" -lt 12 ] || [ "$admin_length" -gt 72 ] || [[ "$ADMIN_PASSWORD" == *"'"* || "$ADMIN_PASSWORD" =~ [[:cntrl:]] ]]; then
+            echo 'Set the ADMIN_PASSWORD GitHub Secret: 12-72 bytes, no single quotes or line breaks.' >&2
+            exit 1
+          fi
+          server() { ssh -T "${DEPLOY_USER}@${DEPLOY_HOST}" "$@"; }
+          release() {
+            server compose < compose.yaml
+            printf '%s\n' "$GHCR_READ_TOKEN" | server "deploy $IMAGE_SHA"
+          }
+          printf '%s\n' "$TELEGRAM_BOT_TOKEN" | server token
+          if ! reply=$(printf '%s\n' "$ADMIN_PASSWORD" | server admin-password 2>&1); then
+            # A server gateway older than the admin-password command: this release's
+            # deploy-tools service installs the current scripts, then the password is applied.
+            if [[ "$reply" != *'Only token, compose and deploy'* ]]; then
+              echo "$reply" >&2
+              exit 1
+            fi
+            echo 'Server deploy scripts are outdated; updating them through this release.'
+            release
+            printf '%s\n' "$ADMIN_PASSWORD" | server admin-password
+          fi
+          release
       - name: Remove key
         if: always()
         run: rm -f ~/.ssh/id_ed25519
