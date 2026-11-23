@@ -5,6 +5,8 @@ export interface Catalog { specialists:Specialist[]; services:Service[]; extras:
 export interface Booking { id:number; token:string; specialist_id:number; specialist:string; service_id:number; service:string; duration:number; extras:Extra[]; total:number; starts_at:string; ends_at:string; name:string; phone:string; status:string; version:number; telegram_chat?:number }
 export interface Shift { id:number; specialist_id:number; starts_at:string; ends_at:string }
 export interface Dashboard { weekly:{date:string;bookings:number;revenue:number}[]; bookings:Booking[]; shifts:Shift[]; catalog:Catalog; stats:Record<string,number> }
+export interface Page<T> { items:T[]; total:number; revenue?:number }
+export interface Client { phone:string; name:string; bookings:number; completed:number; cancelled:number; no_show:number; spent:number; first_at:string; last_visit:string|null; next_visit:string|null; telegram:boolean }
 export async function api<T>(path:string,method='GET',body?:unknown):Promise<T> {
  const response=await fetch('/api'+path,{method,credentials:'same-origin',headers:body===undefined?{}:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
  const data=await response.json().catch(()=>({error:'Сервер временно недоступен'}));

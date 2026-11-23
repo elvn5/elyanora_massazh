@@ -12,7 +12,7 @@ for (const tag of links) {
   const href = tag.match(/\bhref="([^"]+)"/)?.[1];
   assert(href && !href.includes('..') && !href.includes(':'), 'Expected a local stylesheet');
   const css = await readFile(new URL(href, output), 'utf8');
-  for (const selector of ['.admin-sidebar', '.admin-panel', '.primary']) {
+  for (const selector of ['.admin-sidebar', '.admin-panel', '.filters-card', '.bg-primary']) {
     assert(css.includes(selector), `Missing shared UI styles: ${selector}`);
   }
   const definitions = new Set([...css.matchAll(/(--color-[\w-]+)\s*:/g)].map((m) => m[1]));

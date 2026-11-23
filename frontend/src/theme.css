@@ -1,16 +1,15 @@
-/* Shared semantic palette for booking, visit management and the admin panel. */
+/* Elyanora palette. --color-border comes from the spartan preset (var(--border) below). */
 @theme static {
   --font-sans: 'Avenir Next', 'Segoe UI', Arial, sans-serif;
   --color-brand: #244f46;
   --color-brand-hover: #173c34;
-  --color-accent: #52745e;
+  --color-leaf: #52745e;
   --color-canvas: #f7f9f6;
   --color-surface: #ffffff;
   --color-surface-soft: #f0f5ef;
   --color-surface-tint: #e5eee4;
   --color-ink: #243b35;
-  --color-muted: #5c6e65;
-  --color-border: #d2ddd4;
+  --color-ink-soft: #5c6e65;
   --color-border-strong: #81998a;
   --color-focus: #926b25;
   --color-success: #315d43;
@@ -25,4 +24,32 @@
   --color-art-dark: #5c7b63;
   --color-shadow: #244f4614;
   --color-shadow-inset: #173c3424;
+}
+
+/* spartan/ui semantic tokens, mapped onto the Elyanora palette. */
+:root {
+  --radius: 0.75rem;
+  --background: #f7f9f6;
+  --foreground: #243b35;
+  --card: #ffffff;
+  --card-foreground: #243b35;
+  --popover: #ffffff;
+  --popover-foreground: #243b35;
+  --primary: #244f46;
+  --primary-foreground: #ffffff;
+  --secondary: #e5eee4;
+  --secondary-foreground: #173c34;
+  --muted: #f0f5ef;
+  --muted-foreground: #5c6e65;
+  --accent: #e5eee4;
+  --accent-foreground: #173c34;
+  --destructive: #9b4038;
+  --border: #d2ddd4;
+  --input: #b9c8bd;
+  --ring: #926b25;
+  --chart-1: #244f46;
+  --chart-2: #52745e;
+  --chart-3: #9db199;
+  --chart-4: #926b25;
+  --chart-5: #d5dfca;
 }

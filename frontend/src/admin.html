@@ -1,64 +1,48 @@
 @if(checking){
 <main class="admin-login-shell">
-  <div class="empty-state" aria-live="polite">
-    Открываем пространство команды…
-  </div>
+  <div class="empty-state" aria-live="polite">Открываем пространство команды…</div>
 </main>
 }@else if(!logged){
 <main class="admin-login-shell">
   <a class="brand" href="/admin"
-    ><img
-      class="brand-logo"
-      src="/elyanora-logo.svg"
-      alt="Elyanora"
-      width="252"
-      height="52"
+    ><img class="brand-logo" src="/elyanora-logo.svg" alt="Elyanora" width="252" height="52"
   /></a>
   <section class="login-card">
     <div class="eyebrow">ПРОСТРАНСТВО КОМАНДЫ</div>
     <h1>Рады видеть вас</h1>
     <p class="muted">Расписание, гости и забота о студии — в одном месте.</p>
     @if(error){
-    <div class="alert error" role="alert">{{error}}</div>
+    <div hlmAlert variant="destructive" class="mt-5" role="alert">
+      <p hlmAlertDescription>{{error}}</p>
+    </div>
     }
-    <form (ngSubmit)="login()">
-      <label
-        >Пароль администратора<input
+    <form class="mt-6 grid gap-5" (ngSubmit)="login()">
+      <div class="field">
+        <label hlmLabel for="login-password">Пароль администратора</label>
+        <input
+          hlmInput
+          id="login-password"
           type="password"
           name="password"
           [(ngModel)]="password"
           autocomplete="current-password"
-          required /></label
-      ><button class="primary w-full" [disabled]="busy">
+          required
+          class="h-11"
+        />
+      </div>
+      <button hlmBtn size="lg" class="h-11 w-full" [disabled]="busy">
         {{busy?'Проверяем…':'Войти в панель'}}
       </button>
     </form>
-    <p class="login-back">
-      Клиентская запись доступна в Telegram-боте Elyanora
-    </p>
+    <p class="login-back">Клиентская запись доступна в Telegram-боте Elyanora</p>
   </section>
 </main>
 }@else{
 <div class="admin-app">
-  @if(navOpen){<button
-    class="sidebar-scrim"
-    aria-label="Закрыть меню"
-    (click)="closeMenu()"
-  ></button
-  >}
-  <aside
-    #sidebar
-    id="admin-sidebar"
-    class="admin-sidebar"
-    [class.open]="navOpen"
-  >
+  @if(navOpen){<button class="sidebar-scrim" aria-label="Закрыть меню" (click)="closeMenu()"></button>}
+  <aside #sidebar id="admin-sidebar" class="admin-sidebar" [class.open]="navOpen">
     <a class="brand" href="/admin"
-      ><img
-        class="brand-logo"
-        src="/elyanora-logo.svg"
-        alt="Elyanora"
-        width="252"
-        height="52" /></a
+      ><img class="brand-logo" src="/elyanora-logo.svg" alt="Elyanora" width="252" height="52" /></a
     ><span class="sidebar-caption">УПРАВЛЕНИЕ СТУДИЕЙ</span>
     <nav class="sidebar-nav" aria-label="Разделы админки">
       @for(item of menu;track item.id){@if(item.group){
@@ -80,34 +64,29 @@
         >
           <path [attr.d]="item.icon" /></svg
         ><span>{{item.label}}</span
-        >@if(item.id==='bookings'&&data?.stats?.['confirmed']){<span
-          class="nav-count"
+        >@if(item.id==='bookings'&&data?.stats?.['confirmed']){<span class="nav-count"
           >{{data?.stats?.['confirmed']}}</span
         >}</a
       >}
     </nav>
     <div class="sidebar-bottom">
-      <a
-        class="sidebar-website"
-        [href]="bot?.username ? 'https://t.me/'+bot?.username : '/admin#bot'"
+      <a class="sidebar-website" [href]="bot?.username ? 'https://t.me/'+bot?.username : '/admin#bot'"
         >Открыть Telegram-бота <span aria-hidden="true">↗</span></a
       >
       <div class="sidebar-account">
         <span class="account-avatar">А</span>
         <div><strong>Администратор</strong><span>Команда студии</span></div>
         <button
+          hlmBtn
+          variant="ghost"
+          size="icon-sm"
+          class="ms-auto text-muted-foreground"
           (click)="logout()"
           [disabled]="busy"
           aria-label="Выйти из админки"
           title="Выйти"
         >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.7"
-            aria-hidden="true"
-          >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
             <path d="M9 4H4v16h5 M9 12h12 M17 8l4 4-4 4" />
           </svg>
         </button>
@@ -118,18 +97,18 @@
     <header class="admin-topbar">
       <button
         #menuToggle
-        class="admin-mobile-toggle secondary"
+        hlmBtn
+        variant="outline"
+        size="sm"
+        class="admin-mobile-toggle"
         (click)="toggleMenu()"
         aria-controls="admin-sidebar"
         [attr.aria-expanded]="navOpen"
       >
         Меню
       </button>
-      <div class="admin-breadcrumb">
-        Студия <span>/</span> <strong>{{page.label}}</strong>
-      </div>
-      <span class="admin-timezone">{{catalog.timezone}}</span
-      ><span class="account-avatar topbar-avatar">А</span>
+      <div class="admin-breadcrumb">Студия <span>/</span> <strong>{{page.label}}</strong></div>
+      <span class="admin-timezone">{{catalog.timezone}}</span><span class="account-avatar topbar-avatar">А</span>
     </header>
     <main class="admin-content">
       <div class="workspace-heading">
@@ -138,46 +117,48 @@
           <h1>{{page.label}}</h1>
           <p>{{page.description}}</p>
         </div>
-        @if(dateSection){<label class="workspace-date"
-          >Выбранная дата<input
+        @if(dateSection){
+        <div class="field workspace-date">
+          <label hlmLabel for="workspace-date">Выбранная дата</label>
+          <input
+            hlmInput
+            id="workspace-date"
             type="date"
             [(ngModel)]="date"
             (change)="refresh()"
-            [disabled]="busy" /></label
-        >}
+            [disabled]="busy"
+          />
+        </div>
+        }
       </div>
       @if(error){
-      <div class="alert error" role="alert">{{error}}</div>
+      <div hlmAlert variant="destructive" class="mb-6" role="alert">
+        <p hlmAlertDescription>{{error}}</p>
+      </div>
       }@if(notice){
-      <div class="alert success" role="status">{{notice}}</div>
+      <div hlmAlert class="alert-success mb-6" role="status">
+        <p hlmAlertDescription>{{notice}}</p>
+      </div>
       } @if(data){ @if(tab==='overview'){
       <div class="overview-stats">
         <article>
-          <span class="metric-label">Записей за день</span
-          ><strong>{{data.bookings.length}}</strong
-          ><span class="metric-note"
-            >{{data.stats['confirmed']}} ожидают визита</span
-          >
+          <span class="metric-label">Записей за день</span><strong>{{data.bookings.length}}</strong
+          ><span class="metric-note">{{data.stats['confirmed']}} ожидают визита</span>
         </article>
         <article>
-          <span class="metric-label">Завершено сеансов</span
-          ><strong>{{data.stats['completed']}}</strong
+          <span class="metric-label">Завершено сеансов</span><strong>{{data.stats['completed']}}</strong
           ><span class="metric-note"
-            >{{data.stats['cancelled']}} отмен · {{data.stats['no_show']}}
-            неявок</span
+            >{{data.stats['cancelled']}} отмен · {{data.stats['no_show']}} неявок</span
           >
         </article>
         <article class="metric-featured">
-          <span class="metric-label">Выручка за день</span
-          ><strong>{{money(data.stats['revenue'])}}</strong
+          <span class="metric-label">Выручка за день</span><strong>{{money(data.stats['revenue'])}}</strong
           ><span class="metric-note">По завершённым визитам</span>
         </article>
         <article>
           <span class="metric-label">Часы работы команды</span
           ><strong>{{scheduledHours}} <small>ч</small></strong
-          ><span class="metric-note"
-            >{{data.shifts.length}} рабочих интервалов</span
-          >
+          ><span class="metric-note">{{data.shifts.length}} рабочих интервалов</span>
         </article>
       </div>
       <div class="overview-columns">
@@ -187,9 +168,7 @@
               <h2>Ритм недели</h2>
               <p>Количество записей за 7 дней до выбранной даты включительно</p>
             </div>
-            <span class="chart-total"
-              >{{weekTotal}} <small>записей</small></span
-            >
+            <span class="chart-total">{{weekTotal}} <small>записей</small></span>
           </div>
           <div class="week-chart" aria-label="Записи за семь дней">
             @for(day of data.weekly;track day.date){
@@ -208,9 +187,7 @@
             }
           </div>
           @if(!weekTotal){
-          <p class="chart-empty">
-            Пока нет записей. Первые записи появятся здесь автоматически.
-          </p>
+          <p class="chart-empty">Пока нет записей. Первые записи появятся здесь автоматически.</p>
           }
         </section>
         <section class="admin-panel readiness-panel">
@@ -221,47 +198,37 @@
             </div>
           </div>
           <a href="/admin#services" (click)="select('services')"
-            ><span
-              ><strong>Каталог услуг</strong
-              ><small>{{activeServices}} активных услуг</small></span
-            ><span class="readiness-indicator" [class.ready]="activeServices>0"
+            ><span><strong>Каталог услуг</strong><small>{{activeServices}} активных услуг</small></span
+            ><span hlmBadge [variant]="activeServices>0?'secondary':'outline'"
               >{{activeServices?'Готово':'Настроить'}}</span
             ></a
           ><a href="/admin#specialists" (click)="select('specialists')"
-            ><span
-              ><strong>Команда</strong
-              ><small>{{activeMasters}} активных специалистов</small></span
-            ><span class="readiness-indicator" [class.ready]="activeMasters>0"
+            ><span><strong>Команда</strong><small>{{activeMasters}} активных специалистов</small></span
+            ><span hlmBadge [variant]="activeMasters>0?'secondary':'outline'"
               >{{activeMasters?'Готово':'Настроить'}}</span
             ></a
           ><a href="/admin#schedule" (click)="select('schedule')"
             ><span
-              ><strong>Расписание на день</strong
-              ><small>{{data.shifts.length}} рабочих интервалов</small></span
-            ><span
-              class="readiness-indicator"
-              [class.ready]="data.shifts.length>0"
+              ><strong>Расписание на день</strong><small>{{data.shifts.length}} рабочих интервалов</small></span
+            ><span hlmBadge [variant]="data.shifts.length>0?'secondary':'outline'"
               >{{data.shifts.length?'Открыто':'Закрыто'}}</span
             ></a
           ><a href="/admin#bot" (click)="select('bot')"
             ><span
               ><strong>Telegram-бот</strong
-              ><small
-                >{{bot?.username?'@'+bot?.username:'Подключение не
-                подтверждено'}}</small
-              ></span
-            ><span class="readiness-indicator" [class.ready]="!!bot?.username"
+              ><small>{{bot?.username?'@'+bot?.username:'Подключение не подтверждено'}}</small></span
+            ><span hlmBadge [variant]="bot?.username?'secondary':'outline'"
               >{{bot?.username?'Подключён':'Проверить'}}</span
             ></a
           >
         </section>
       </div>
       @if(data.stats['failed_notifications']){
-      <div class="alert error">
-        Есть ошибки доставки: {{data.stats['failed_notifications']}}.
-        <a href="/admin#bot" (click)="select('bot')" class="text-button"
-          >Проверить Telegram-бота</a
-        >
+      <div hlmAlert variant="destructive" class="mb-6">
+        <p hlmAlertDescription>
+          Есть ошибки доставки: {{data.stats['failed_notifications']}}.
+          <a href="/admin#bot" (click)="select('bot')" class="underline">Проверить Telegram-бота</a>
+        </p>
       </div>
       }
       <section class="admin-panel">
@@ -270,22 +237,17 @@
             <h2>Ожидаем гостей</h2>
             <p>До пяти ближайших подтверждённых записей за выбранный день</p>
           </div>
-          <a
-            class="secondary"
-            href="/admin#bookings"
-            (click)="select('bookings')"
-            >Все записи</a
-          >
+          <a hlmBtn variant="outline" href="/admin#bookings" (click)="select('bookings')">Все записи</a>
         </div>
         <div class="upcoming-list">
           @for(b of upcoming;track b.id){
           <div>
             <span class="upcoming-time">{{time(b.starts_at)}}</span>
             <div>
-              <strong>{{b.name}}</strong
-              ><small>{{b.service}} · {{b.specialist}}</small>
+              <strong>{{b.name}}</strong><small>{{b.service}} · {{b.specialist}}</small>
             </div>
-            <span class="badge">Подтверждена</span
+            <span hlmBadge variant="outline" class="status-badge ms-auto"
+              ><span class="status-dot" [style.background]="statusTone[b.status]"></span>Подтверждена</span
             ><strong>{{money(b.total)}}</strong>
           </div>
           }@empty{
@@ -293,10 +255,7 @@
             <span aria-hidden="true">◷</span>
             <h3>Время для новых встреч</h3>
             <p>На выбранный день нет подтверждённых записей.</p>
-            <a
-              href="/admin#schedule"
-              class="secondary"
-              (click)="select('schedule')"
+            <a hlmBtn variant="outline" href="/admin#schedule" (click)="select('schedule')"
               >Настроить расписание</a
             >
           </div>
@@ -304,76 +263,164 @@
         </div>
       </section>
       } @if(tab==='bookings'){
-      <div class="booking-filters">
-        <label
-          >Поиск<input
+      <section class="filters-card" aria-label="Поиск и фильтры записей">
+        <div hlmInputGroup class="h-11">
+          <div hlmInputGroupAddon><ng-icon name="lucideSearch" /></div>
+          <input
+            hlmInputGroupInput
             type="search"
-            [(ngModel)]="search"
-            placeholder="Имя, телефон, услуга или мастер" /></label
-        ><label
-          >Статус<select [(ngModel)]="filter">
-            <option value="">Все статусы</option>
-            <option value="confirmed">Подтверждены</option>
-            <option value="completed">Завершены</option>
-            <option value="cancelled">Отменены</option>
-            <option value="no_show">Неявки</option>
-          </select></label
-        ><button class="secondary" (click)="refresh()" [disabled]="busy">
-          Обновить
-        </button>
-      </div>
-      <section class="admin-panel">
-        <div class="section-heading">
-          <h2>Записи на день</h2>
-          <p>Выручка учитывает только завершённые сеансы.</p>
+            [(ngModel)]="bq.q"
+            (ngModelChange)="searchSoon('bookings')"
+            (keydown.enter)="loadBookings()"
+            placeholder="Имя гостя, телефон, услуга, мастер или № записи"
+            aria-label="Поиск записей"
+          />
+          @if(bq.q){
+          <div hlmInputGroupAddon align="inline-end">
+            <button hlmInputGroupButton size="icon-xs" aria-label="Очистить поиск" (click)="bq.q='';loadBookings()">
+              <ng-icon name="lucideX" />
+            </button>
+          </div>
+          }
         </div>
-        <div class="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Время</th>
-                <th>Гость</th>
-                <th>Сеанс</th>
-                <th>Специалист</th>
-                <th>Статус</th>
-                <th>Действия</th>
+        <div class="filters-grid">
+          <div class="field">
+            <label hlmLabel for="f-period">Период</label>
+            <app-select
+              inputId="f-period"
+              [options]="periodOptions"
+              [value]="bq.period"
+              (valueChange)="bq.period=$any($event);loadBookings()"
+            />
+          </div>
+          @if(bq.period==='custom'){
+          <div class="field">
+            <label hlmLabel for="f-from">С</label>
+            <input hlmInput id="f-from" type="date" [(ngModel)]="bq.from" (change)="loadBookings()" />
+          </div>
+          <div class="field">
+            <label hlmLabel for="f-to">По</label>
+            <input hlmInput id="f-to" type="date" [(ngModel)]="bq.to" (change)="loadBookings()" />
+          </div>
+          }
+          <div class="field">
+            <label hlmLabel for="f-status">Статус</label>
+            <app-select
+              inputId="f-status"
+              placeholder="Все статусы"
+              [options]="statusOptions"
+              [value]="bq.status"
+              (valueChange)="bq.status=$any($event);loadBookings()"
+            />
+          </div>
+          <div class="field">
+            <label hlmLabel for="f-master">Специалист</label>
+            <app-select
+              inputId="f-master"
+              [options]="specialistOptions"
+              [value]="bq.specialist"
+              (valueChange)="bq.specialist=$any($event);loadBookings()"
+            />
+          </div>
+          <div class="field">
+            <label hlmLabel for="f-service">Услуга</label>
+            <app-select
+              inputId="f-service"
+              [options]="serviceOptions"
+              [value]="bq.service"
+              (valueChange)="bq.service=$any($event);loadBookings()"
+            />
+          </div>
+          <div class="field">
+            <label hlmLabel for="f-sort">Порядок</label>
+            <app-select
+              inputId="f-sort"
+              [options]="sortOptions"
+              [value]="bq.sort"
+              (valueChange)="bq.sort=$any($event);loadBookings()"
+            />
+          </div>
+        </div>
+        <div class="filters-footer">
+          <p class="filters-summary" aria-live="polite">
+            @if(bookingsLoading){Ищем…}@else{
+            Найдено <strong>{{bookingPage.total}}</strong>
+            · выручка по завершённым <strong>{{money(bookingPage.revenue||0)}}</strong>}
+          </p>
+          @if(bq.phone){
+          <span hlmBadge variant="secondary" class="h-7 gap-1.5 ps-2.5 pe-1">
+            <ng-icon name="lucideUserRound" />Клиент: {{bq.phoneLabel}}
+            <button
+              hlmBtn
+              variant="ghost"
+              size="icon-xs"
+              class="rounded-full"
+              aria-label="Показать записи всех клиентов"
+              (click)="clearClientFilter()"
+            >
+              <ng-icon name="lucideX" />
+            </button>
+          </span>
+          }
+          <button
+            hlmBtn
+            variant="ghost"
+            size="sm"
+            class="ms-auto"
+            [disabled]="!activeBookingFilters"
+            (click)="resetBookingFilters()"
+          >
+            <ng-icon name="lucideRotateCcw" />Сбросить фильтры
+            @if(activeBookingFilters){<span hlmBadge variant="secondary">{{activeBookingFilters}}</span>}
+          </button>
+        </div>
+      </section>
+      <section class="admin-panel table-panel">
+        <div hlmTableContainer>
+          <table hlmTable class="admin-table">
+            <thead hlmTHead>
+              <tr hlmTr>
+                <th hlmTh>Дата и время</th>
+                <th hlmTh>Гость</th>
+                <th hlmTh>Сеанс</th>
+                <th hlmTh>Специалист</th>
+                <th hlmTh>Статус</th>
+                <th hlmTh class="text-end">Действия</th>
               </tr>
             </thead>
-            <tbody>
-              @for(b of filteredBookings;track b.id){
-              <tr>
-                <td>
-                  <strong>{{time(b.starts_at)}}–{{time(b.ends_at)}}</strong>
+            <tbody hlmTBody>
+              @for(b of bookingPage.items;track b.id){
+              <tr hlmTr>
+                <td hlmTd>
+                  <strong>{{when(b)}}</strong><small>{{time(b.starts_at)}}–{{time(b.ends_at)}} · №{{b.id}}</small>
                 </td>
-                <td>{{b.name}}<small>{{b.phone}}</small></td>
-                <td>
-                  {{b.service}}<small>{{money(b.total)}}</small>@for(x of
-                  b.extras;track x.id){<small>+ {{x.name}}</small>}
+                <td hlmTd>
+                  <button class="link-cell" (click)="showClientBookings(b)" [attr.aria-label]="'Все записи клиента '+b.name">
+                    {{b.name}}
+                  </button>
+                  <a class="cell-sub" [href]="'tel:'+b.phone">{{b.phone}}</a>
+                  @if(b.telegram_chat){<small class="cell-sub">Telegram</small>}
                 </td>
-                <td>{{b.specialist}}</td>
-                <td>
-                  <span
-                    class="badge"
-                    [class.cancelled]="b.status==='cancelled'"
-                    [attr.data-status]="b.status"
+                <td hlmTd>
+                  {{b.service}}<small>{{b.duration}} мин · {{money(b.total)}}</small>@for(x of b.extras;track x.id){<small
+                    >+ {{x.name}}</small
+                  >}
+                </td>
+                <td hlmTd>{{b.specialist}}</td>
+                <td hlmTd>
+                  <span hlmBadge variant="outline" class="status-badge"
+                    ><span class="status-dot" [style.background]="statusTone[b.status]"></span
                     >{{statuses[b.status]}}</span
                   >
                 </td>
-                <td>
+                <td hlmTd>
                   @if(b.status==='confirmed'){
                   <div class="table-actions">
-                    <button
-                      (click)="status(b.id,'completed')"
-                      [disabled]="busy"
-                    >
+                    <button hlmBtn variant="outline" size="sm" (click)="status(b.id,'completed')" [disabled]="busy">
                       Завершён</button
-                    ><button (click)="status(b.id,'no_show')" [disabled]="busy">
+                    ><button hlmBtn variant="outline" size="sm" (click)="status(b.id,'no_show')" [disabled]="busy">
                       Неявка</button
-                    ><button
-                      class="danger-text"
-                      (click)="status(b.id,'cancelled')"
-                      [disabled]="busy"
-                    >
+                    ><button hlmBtn variant="destructive" size="sm" (click)="askCancel(b)" [disabled]="busy">
                       Отменить
                     </button>
                   </div>
@@ -381,194 +428,289 @@
                 </td>
               </tr>
               }@empty{
-              <tr>
-                <td colspan="6" class="empty-state">
-                  Записей по выбранным условиям нет.
+              <tr hlmTr>
+                <td hlmTd colspan="6" class="empty-cell">
+                  {{bookingsLoading?'Загружаем записи…':'Записей по выбранным условиям нет.'}}
+                  @if(!bookingsLoading&&activeBookingFilters){<button
+                    hlmBtn
+                    variant="link"
+                    (click)="resetBookingFilters()"
+                  >
+                    Сбросить фильтры</button
+                  >}
                 </td>
               </tr>
               }
             </tbody>
           </table>
         </div>
+        @if(bookingPage.items.length<bookingPage.total){
+        <div class="load-more">
+          <button hlmBtn variant="outline" [disabled]="bookingsLoading" (click)="loadBookings(true)">
+            Показать ещё · {{bookingPage.items.length}} из {{bookingPage.total}}
+          </button>
+        </div>
+        }
+      </section>
+      } @if(tab==='clients'){
+      <section class="filters-card" aria-label="Поиск и фильтры клиентов">
+        <div class="filters-grid clients">
+          <div class="field search-field">
+            <label hlmLabel for="c-search">Поиск</label>
+            <div hlmInputGroup>
+              <div hlmInputGroupAddon><ng-icon name="lucideSearch" /></div>
+              <input
+                hlmInputGroupInput
+                id="c-search"
+                type="search"
+                [(ngModel)]="cq.q"
+                (ngModelChange)="searchSoon('clients')"
+                (keydown.enter)="loadClients()"
+                placeholder="Имя или телефон"
+              />
+              @if(cq.q){
+              <div hlmInputGroupAddon align="inline-end">
+                <button hlmInputGroupButton size="icon-xs" aria-label="Очистить поиск" (click)="cq.q='';loadClients()">
+                  <ng-icon name="lucideX" />
+                </button>
+              </div>
+              }
+            </div>
+          </div>
+          <div class="field">
+            <label hlmLabel for="c-segment">Сегмент</label>
+            <app-select
+              inputId="c-segment"
+              [options]="segmentOptions"
+              [value]="cq.segment"
+              (valueChange)="cq.segment=$any($event);loadClients()"
+            />
+          </div>
+          <div class="field">
+            <label hlmLabel for="c-sort">Сортировка</label>
+            <app-select
+              inputId="c-sort"
+              [options]="clientSortOptions"
+              [value]="cq.sort"
+              (valueChange)="cq.sort=$any($event);loadClients()"
+            />
+          </div>
+        </div>
+        <div class="filters-footer">
+          <p class="filters-summary" aria-live="polite">
+            @if(clientsLoading){Ищем…}@else{Клиентов: <strong>{{clientPage.total}}</strong>}
+          </p>
+          <button
+            hlmBtn
+            variant="ghost"
+            size="sm"
+            class="ms-auto"
+            [disabled]="!activeClientFilters"
+            (click)="resetClientFilters()"
+          >
+            <ng-icon name="lucideRotateCcw" />Сбросить фильтры
+          </button>
+        </div>
+      </section>
+      <section class="admin-panel table-panel">
+        <div hlmTableContainer>
+          <table hlmTable class="admin-table">
+            <thead hlmTHead>
+              <tr hlmTr>
+                <th hlmTh>Клиент</th>
+                <th hlmTh>Визиты</th>
+                <th hlmTh>Потратил</th>
+                <th hlmTh>Последний визит</th>
+                <th hlmTh>Следующая запись</th>
+                <th hlmTh class="text-end">История</th>
+              </tr>
+            </thead>
+            <tbody hlmTBody>
+              @for(c of clientPage.items;track c.phone){
+              <tr hlmTr>
+                <td hlmTd>
+                  <strong>{{c.name}}</strong>
+                  <a class="cell-sub" [href]="'tel:'+c.phone"><ng-icon name="lucidePhone" />{{c.phone}}</a>
+                  <span class="client-tags">
+                    @if(c.telegram){<span hlmBadge variant="secondary"><ng-icon name="lucideMessageCircle" />Telegram</span>}
+                    @if(c.completed>=3){<span hlmBadge variant="outline">Постоянный</span>}
+                    @if(c.no_show){<span hlmBadge variant="destructive">Неявки: {{c.no_show}}</span>}
+                  </span>
+                </td>
+                <td hlmTd>
+                  <strong>{{c.completed}}</strong><small>из {{c.bookings}} записей · отмен {{c.cancelled}}</small>
+                </td>
+                <td hlmTd><strong>{{money(c.spent)}}</strong></td>
+                <td hlmTd>{{day(c.last_visit)}}</td>
+                <td hlmTd>
+                  @if(c.next_visit){<span hlmBadge variant="outline" class="status-badge"
+                    ><span class="status-dot" [style.background]="statusTone['confirmed']"></span
+                    >{{day(c.next_visit)}}</span
+                  >}@else{<span class="muted">—</span>}
+                </td>
+                <td hlmTd class="text-end">
+                  <button hlmBtn variant="outline" size="sm" (click)="showClientBookings(c)">
+                    <ng-icon name="lucideCalendarDays" />Записи
+                  </button>
+                </td>
+              </tr>
+              }@empty{
+              <tr hlmTr>
+                <td hlmTd colspan="6" class="empty-cell">
+                  {{clientsLoading?'Загружаем клиентов…':'Клиентов по выбранным условиям нет.'}}
+                </td>
+              </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if(clientPage.items.length<clientPage.total){
+        <div class="load-more">
+          <button hlmBtn variant="outline" [disabled]="clientsLoading" (click)="loadClients(true)">
+            Показать ещё · {{clientPage.items.length}} из {{clientPage.total}}
+          </button>
+        </div>
+        }
       </section>
       } @if(tab==='schedule'){
       <div class="schedule-summary">
         <p>
-          <strong>{{data.shifts.length}}</strong> интервалов ·
-          <strong>{{scheduledHours}} ч</strong> работы команды
+          <strong>{{data.shifts.length}}</strong> интервалов · <strong>{{scheduledHours}} ч</strong> работы команды
         </p>
-        <button class="secondary" (click)="refresh()" [disabled]="busy">
-          Обновить
-        </button>
+        <button hlmBtn variant="outline" (click)="refresh()" [disabled]="busy">Обновить</button>
       </div>
       <section class="admin-panel">
         <div class="section-heading">
           <h2>Рабочие интервалы</h2>
-          <p>
-            Добавьте отдельные интервалы до и после перерыва. Время вне
-            интервалов недоступно для записи.
-          </p>
+          <p>Добавьте отдельные интервалы до и после перерыва. Время вне интервалов недоступно для записи.</p>
         </div>
         <form class="shift-form" (ngSubmit)="addShift()">
-          <label
-            >Специалист<select name="master" [(ngModel)]="shiftMaster" required>
-              <option [ngValue]="0" disabled>Выберите мастера</option>
-              @for(s of data.catalog.specialists;track s.id){
-              <option [ngValue]="s.id">{{s.name}}</option>
-              }
-            </select></label
-          ><label
-            >Начало<input
-              name="start"
-              type="time"
-              [(ngModel)]="shiftStart"
-              step="900"
-              required /></label
-          ><label
-            >Конец<input
-              name="end"
-              type="time"
-              [(ngModel)]="shiftEnd"
-              step="900"
-              required /></label
-          ><button class="primary" [disabled]="busy||!shiftMaster">
-            Добавить интервал
-          </button>
+          <div class="field">
+            <label hlmLabel for="shift-master">Специалист</label>
+            <app-select
+              inputId="shift-master"
+              placeholder="Выберите мастера"
+              [options]="shiftMasterOptions"
+              [value]="shiftMaster"
+              (valueChange)="shiftMaster=$any($event)"
+            />
+          </div>
+          <div class="field">
+            <label hlmLabel for="shift-start">Начало</label>
+            <input hlmInput id="shift-start" name="start" type="time" [(ngModel)]="shiftStart" step="900" required />
+          </div>
+          <div class="field">
+            <label hlmLabel for="shift-end">Конец</label>
+            <input hlmInput id="shift-end" name="end" type="time" [(ngModel)]="shiftEnd" step="900" required />
+          </div>
+          <button hlmBtn [disabled]="busy||!shiftMaster">Добавить интервал</button>
         </form>
         <div class="shift-list">
           @for(s of data.shifts;track s.id){
           <div>
-            <strong>{{master(s.specialist_id)}}</strong
-            ><span>{{time(s.starts_at)}}–{{time(s.ends_at)}}</span
-            ><button
-              class="text-button danger-text"
-              (click)="removeShift(s.id)"
-              [disabled]="busy"
-            >
+            <strong>{{master(s.specialist_id)}}</strong><span>{{time(s.starts_at)}}–{{time(s.ends_at)}}</span
+            ><button hlmBtn variant="destructive" size="sm" class="ms-auto" (click)="removeShift(s.id)" [disabled]="busy">
               Удалить
             </button>
           </div>
           }@empty{
-          <p class="muted">
-            Рабочих интервалов нет — запись на этот день закрыта.
-          </p>
+          <p class="muted">Рабочих интервалов нет — запись на этот день закрыта.</p>
           }
         </div>
       </section>
       } @if(['services','extras','specialists'].includes(tab)){
       <div class="admin-toolbar">
-        <h2>
-          {{tab==='services'?'Услуги':tab==='extras'?'Дополнительные
-          опции':'Специалисты'}}
-        </h2>
-        <button class="primary" (click)="edit(tab)">Добавить</button>
+        <h2>{{tab==='services'?'Услуги':tab==='extras'?'Дополнительные опции':'Специалисты'}}</h2>
+        <button hlmBtn (click)="edit(tab)">Добавить</button>
       </div>
       @if(tab==='services'){
-      <p class="muted mb-6">
-        Активные услуги отображаются при записи в боте и по команде /services.
-      </p>
+      <p class="muted mb-6">Активные услуги отображаются при записи в боте и по команде /services.</p>
       @for(s of data.catalog.services;track s.id){
       <div class="catalog-row">
         <div>
-          <h3>
-            {{s.name}} @if(!s.active){<span class="badge cancelled">Скрыта</span
-            >}
-          </h3>
+          <h3>{{s.name}} @if(!s.active){<span hlmBadge variant="outline">Скрыта</span>}</h3>
           <p>{{s.description}}</p>
           <small>{{prices(s)}}</small>
         </div>
-        <button class="secondary" (click)="edit('services',s)">Изменить</button>
+        <button hlmBtn variant="outline" (click)="edit('services',s)">Изменить</button>
       </div>
       }} @if(tab==='extras'){@for(s of data.catalog.extras;track s.id){
       <div class="catalog-row">
         <div>
-          <h3>
-            {{s.name}} @if(!s.active){<span class="badge cancelled">Скрыта</span
-            >}
-          </h3>
+          <h3>{{s.name}} @if(!s.active){<span hlmBadge variant="outline">Скрыта</span>}</h3>
           <p>{{money(s.price)}} · + {{s.minutes}} мин</p>
         </div>
-        <button class="secondary" (click)="edit('extras',s)">Изменить</button>
+        <button hlmBtn variant="outline" (click)="edit('extras',s)">Изменить</button>
       </div>
-      }} @if(tab==='specialists'){@for(s of data.catalog.specialists;track
-      s.id){
+      }} @if(tab==='specialists'){@for(s of data.catalog.specialists;track s.id){
       <div class="catalog-row">
         <div>
-          <h3>
-            {{s.name}} @if(!s.active){<span class="badge cancelled"
-              >Неактивен</span
-            >}
-          </h3>
+          <h3>{{s.name}} @if(!s.active){<span hlmBadge variant="outline">Неактивен</span>}</h3>
           <p>{{s.bio}}</p>
         </div>
-        <button class="secondary" (click)="edit('specialists',s)">
-          Изменить
-        </button>
+        <button hlmBtn variant="outline" (click)="edit('specialists',s)">Изменить</button>
       </div>
       }} @if(editor){
       <section class="admin-panel editor">
         <h2>{{editor.id?'Редактирование':'Новая запись'}}</h2>
-        <form (ngSubmit)="save()">
-          <label
-            >Название / имя<input
-              name="name"
-              [(ngModel)]="editor.name"
-              required
-              minlength="2"
-              maxlength="100" /></label
-          >@if(editKind==='services'){<label
-            >Описание<textarea
+        <form class="mt-5 grid gap-5" (ngSubmit)="save()">
+          <div class="field">
+            <label hlmLabel for="edit-name">Название / имя</label>
+            <input hlmInput id="edit-name" name="name" [(ngModel)]="editor.name" required minlength="2" maxlength="100" />
+          </div>
+          @if(editKind==='services'){
+          <div class="field">
+            <label hlmLabel for="edit-description">Описание</label>
+            <textarea
+              hlmTextarea
+              id="edit-description"
               name="description"
               [(ngModel)]="editor.description"
               maxlength="1000"
             ></textarea>
-          </label>
+          </div>
           <p class="muted small">
-            Оставьте цену пустой, чтобы отключить длительность. Нулевая цена
-            означает бесплатный сеанс.
+            Оставьте цену пустой, чтобы отключить длительность. Нулевая цена означает бесплатный сеанс.
           </p>
           <div class="price-inputs">
-            <label
-              >60 минут<input
-                type="number"
-                name="p60"
-                [(ngModel)]="editor.p60"
-                min="0"
-                max="1000000" /></label
-            ><label
-              >90 минут<input
-                type="number"
-                name="p90"
-                [(ngModel)]="editor.p90"
-                min="0"
-                max="1000000" /></label
-            ><label
-              >120 минут<input
-                type="number"
-                name="p120"
-                [(ngModel)]="editor.p120"
-                min="0"
-                max="1000000"
-            /></label>
+            <div class="field">
+              <label hlmLabel for="p60">60 минут</label>
+              <input hlmInput id="p60" type="number" name="p60" [(ngModel)]="editor.p60" min="0" max="1000000" />
+            </div>
+            <div class="field">
+              <label hlmLabel for="p90">90 минут</label>
+              <input hlmInput id="p90" type="number" name="p90" [(ngModel)]="editor.p90" min="0" max="1000000" />
+            </div>
+            <div class="field">
+              <label hlmLabel for="p120">120 минут</label>
+              <input hlmInput id="p120" type="number" name="p120" [(ngModel)]="editor.p120" min="0" max="1000000" />
+            </div>
           </div>
-          } @if(editKind==='specialists'){<label
-            >О специалисте<textarea
-              name="bio"
-              [(ngModel)]="editor.bio"
-              maxlength="1000"
-            ></textarea></label
-          >} @if(editKind==='extras'){
+          } @if(editKind==='specialists'){
+          <div class="field">
+            <label hlmLabel for="edit-bio">О специалисте</label>
+            <textarea hlmTextarea id="edit-bio" name="bio" [(ngModel)]="editor.bio" maxlength="1000"></textarea>
+          </div>
+          } @if(editKind==='extras'){
           <div class="price-inputs">
-            <label
-              >Стоимость<input
+            <div class="field">
+              <label hlmLabel for="edit-price">Стоимость</label>
+              <input
+                hlmInput
+                id="edit-price"
                 type="number"
                 name="price"
                 [(ngModel)]="editor.price"
                 required
                 min="0"
-                max="1000000" /></label
-            ><label
-              >Дополнительное время (мин)<input
+                max="1000000"
+              />
+            </div>
+            <div class="field">
+              <label hlmLabel for="edit-minutes">Дополнительное время (мин)</label>
+              <input
+                hlmInput
+                id="edit-minutes"
                 type="number"
                 name="minutes"
                 [(ngModel)]="editor.minutes"
@@ -576,65 +718,46 @@
                 min="0"
                 max="60"
                 step="15"
-            /></label>
+              />
+            </div>
           </div>
           }
-          <label class="consent"
-            ><input
-              name="active"
-              type="checkbox"
-              [(ngModel)]="editor.active"
-            /><span>Доступно для новых записей</span></label
-          >
-          <p class="small muted mb-5">
-            Изменения не меняют стоимость и состав ранее оформленных записей.
-          </p>
+          <div class="flex items-center gap-3">
+            <hlm-checkbox inputId="edit-active" name="active" [(ngModel)]="editor.active" />
+            <label hlmLabel for="edit-active">Доступно для новых записей</label>
+          </div>
+          <p class="small muted">Изменения не меняют стоимость и состав ранее оформленных записей.</p>
           <div class="flex gap-3">
-            <button class="primary" [disabled]="busy">Сохранить</button
-            ><button type="button" class="secondary" (click)="editor=null">
-              Закрыть
-            </button>
+            <button hlmBtn [disabled]="busy">Сохранить</button
+            ><button hlmBtn type="button" variant="outline" (click)="editor=null">Закрыть</button>
           </div>
         </form>
       </section>
       } } @if(tab==='bot'){ @if(bot&&botDraft){
       <section class="bot-connection admin-panel">
         <span class="telegram-mark" aria-hidden="true"
-          ><svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-          >
+          ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M3 10l18-7-5 18-5-7-8-4z M11 14l10-11" /></svg
         ></span>
         <div>
           <h2>{{bot.username?'@'+bot.username:'Telegram-бот'}}</h2>
           <p>
-            {{bot.username?'Бот распознан через Telegram
-            API':bot.configured?'Токен задан, подключение ещё не
+            {{bot.username?'Бот распознан через Telegram API':bot.configured?'Токен задан, подключение ещё не
             подтверждено':'Токен бота пока не настроен'}}
           </p>
-          <span class="small muted"
-            >Токен хранится в GitHub Secrets и здесь не отображается.</span
-          >
+          <span class="small muted">Токен хранится в GitHub Secrets и здесь не отображается.</span>
         </div>
-        <button class="secondary" [disabled]="busy" (click)="checkBot()">
-          Проверить подключение
-        </button>
+        <button hlmBtn variant="outline" [disabled]="busy" (click)="checkBot()">Проверить подключение</button>
       </section>
       <div class="bot-stats">
         <article>
-          <strong>{{bot.stats['linked']}}</strong
-          ><span>Предстоящих записей с Telegram</span>
+          <strong>{{bot.stats['linked']}}</strong><span>Предстоящих записей с Telegram</span>
         </article>
         <article>
-          <strong>{{bot.stats['pending']}}</strong
-          ><span>Уведомлений в очереди</span>
+          <strong>{{bot.stats['pending']}}</strong><span>Уведомлений в очереди</span>
         </article>
         <article>
-          <strong>{{bot.stats['sent']}}</strong
-          ><span>Доставлено за 7 дней</span>
+          <strong>{{bot.stats['sent']}}</strong><span>Доставлено за 7 дней</span>
         </article>
         <article [class.has-errors]="bot.stats['failed']>0">
           <strong>{{bot.stats['failed']}}</strong><span>Ошибок доставки</span>
@@ -649,47 +772,51 @@
                 <p>Тексты меняются сразу после сохранения</p>
               </div>
             </div>
-            <label
-              >Приветственное сообщение<textarea
-                name="welcome"
-                rows="4"
-                [(ngModel)]="botDraft.welcome_message"
-                (ngModelChange)="botDirty=true"
-                required
-                minlength="2"
-                maxlength="1000"
-              ></textarea
-              ><small class="muted"
-                >{{botDraft.welcome_message.length}} / 1000 · показывается по
-                команде /start</small
-              ></label
-            ><label
-              >Контакты и информация о визите<textarea
-                name="contact"
-                rows="3"
-                [(ngModel)]="botDraft.contact_text"
-                (ngModelChange)="botDirty=true"
-                maxlength="500"
-                placeholder="Адрес студии, телефон или рекомендации перед визитом"
-              ></textarea
-              ><small class="muted"
-                >Добавляется в приветствие и уведомления · до 500
-                символов</small
-              ></label
-            ><label class="setting-toggle"
-              ><span
+            <div class="grid gap-5 pb-5">
+              <div class="field">
+                <label hlmLabel for="bot-welcome">Приветственное сообщение</label>
+                <textarea
+                  hlmTextarea
+                  id="bot-welcome"
+                  name="welcome"
+                  rows="4"
+                  [(ngModel)]="botDraft.welcome_message"
+                  (ngModelChange)="botDirty=true"
+                  required
+                  minlength="2"
+                  maxlength="1000"
+                ></textarea>
+                <small class="field-hint"
+                  >{{botDraft.welcome_message.length}} / 1000 · показывается по команде /start</small
+                >
+              </div>
+              <div class="field">
+                <label hlmLabel for="bot-contact">Контакты и информация о визите</label>
+                <textarea
+                  hlmTextarea
+                  id="bot-contact"
+                  name="contact"
+                  rows="3"
+                  [(ngModel)]="botDraft.contact_text"
+                  (ngModelChange)="botDirty=true"
+                  maxlength="500"
+                  placeholder="Адрес студии, телефон или рекомендации перед визитом"
+                ></textarea>
+                <small class="field-hint">Добавляется в приветствие и уведомления · до 500 символов</small>
+              </div>
+            </div>
+            <div class="setting-toggle">
+              <label for="bot-services"
                 ><strong>Кнопка «Услуги и цены»</strong
-                ><small
-                  >Отдельный просмотр каталога. Выбор услуги при записи остаётся
-                  доступен</small
-                ></span
-              ><input
-                type="checkbox"
-                role="switch"
+                ><small>Отдельный просмотр каталога. Выбор услуги при записи остаётся доступен</small></label
+              >
+              <hlm-switch
+                inputId="bot-services"
                 name="services"
                 [(ngModel)]="botDraft.services_enabled"
                 (ngModelChange)="botDirty=true"
-            /></label>
+              />
+            </div>
           </section>
           <section class="admin-panel">
             <div class="panel-heading">
@@ -698,41 +825,32 @@
                 <p>Подключаются автоматически при записи через Telegram</p>
               </div>
             </div>
-            <label class="setting-toggle"
-              ><span
-                ><strong>За 24 часа</strong
-                ><small>Напомнить накануне визита</small></span
-              ><input
-                type="checkbox"
-                role="switch"
+            <div class="setting-toggle">
+              <label for="bot-r24"><strong>За 24 часа</strong><small>Напомнить накануне визита</small></label>
+              <hlm-switch
+                inputId="bot-r24"
                 name="reminder24"
                 [(ngModel)]="botDraft.reminder_24h"
-                (ngModelChange)="botDirty=true" /></label
-            ><label class="setting-toggle"
-              ><span
-                ><strong>За 2 часа</strong
-                ><small>Напомнить незадолго до сеанса</small></span
-              ><input
-                type="checkbox"
-                role="switch"
+                (ngModelChange)="botDirty=true"
+              />
+            </div>
+            <div class="setting-toggle">
+              <label for="bot-r2"><strong>За 2 часа</strong><small>Напомнить незадолго до сеанса</small></label>
+              <hlm-switch
+                inputId="bot-r2"
                 name="reminder2"
                 [(ngModel)]="botDraft.reminder_2h"
                 (ngModelChange)="botDirty=true"
-            /></label>
+              />
+            </div>
             <p class="settings-hint">
-              Настройки действуют и на ожидающие уведомления. Напоминания,
-              пропущенные во время отключения, не отправляются задним числом.
-              Подтверждения, отмены и переносы остаются включены.
+              Настройки действуют и на ожидающие уведомления. Напоминания, пропущенные во время отключения, не
+              отправляются задним числом. Подтверждения, отмены и переносы остаются включены.
             </p>
           </section>
           <div class="settings-save">
-            <span class="muted"
-              >{{botDirty?'Есть несохранённые изменения':'Все изменения
-              сохранены'}}</span
-            ><button
-              class="primary"
-              [disabled]="busy||!botDirty||botDraft.welcome_message.trim().length<2"
-            >
+            <span class="muted">{{botDirty?'Есть несохранённые изменения':'Все изменения сохранены'}}</span
+            ><button hlmBtn [disabled]="busy||!botDirty||botDraft.welcome_message.trim().length<2">
               {{busy?'Сохраняем…':'Сохранить настройки'}}
             </button>
           </div>
@@ -745,13 +863,10 @@
             </div>
           </div>
           <div class="telegram-preview">
-            <div class="preview-bot-name">
-              {{bot.username?'@'+bot.username:'Бот студии'}}
-            </div>
+            <div class="preview-bot-name">{{bot.username?'@'+bot.username:'Бот студии'}}</div>
             <p>{{botPreview}}</p>
             <div class="preview-actions">
-              <span>Записаться</span
-              ><span>Мои записи</span> @if(botDraft.services_enabled){<span
+              <span>Записаться</span><span>Мои записи</span> @if(botDraft.services_enabled){<span
                 >Услуги и цены</span
               >}
               <span>Контакты студии</span>
@@ -759,8 +874,8 @@
             <span>только что</span>
           </div>
           <p class="settings-hint">
-            Клиент выбирает услугу, специалиста и время прямо в Telegram.
-            Напоминания подключаются автоматически при записи.
+            Клиент выбирает услугу, специалиста и время прямо в Telegram. Напоминания подключаются автоматически при
+            записи.
           </p>
         </aside>
       </form>
@@ -768,30 +883,37 @@
         <div>
           <h3>Ошибки доставки</h3>
           <p>
-            После устранения проблемы можно повторить отправку для актуальных
-            записей. Автоматически выполняется до 12 попыток.
+            После устранения проблемы можно повторить отправку для актуальных записей. Автоматически выполняется до 12
+            попыток.
           </p>
         </div>
-        <button
-          class="secondary"
-          [disabled]="busy||!bot.stats['failed']"
-          (click)="retryJobs()"
-        >
+        <button hlmBtn variant="outline" [disabled]="busy||!bot.stats['failed']" (click)="retryJobs()">
           Повторить отправку
         </button>
       </section>
       }@else{
       <div class="empty-state">
         Не удалось загрузить настройки бота.
-        <button class="secondary" (click)="run(loadBot.bind(this))">
-          Повторить
-        </button>
+        <button hlmBtn variant="outline" (click)="run(loadBot.bind(this))">Повторить</button>
       </div>
       } } }
-      <p class="workspace-footer">
-        Elyanora · забота о гостях начинается здесь
-      </p>
+      <p class="workspace-footer">Elyanora · забота о гостях начинается здесь</p>
     </main>
   </div>
+  <hlm-alert-dialog [state]="confirmCancel?'open':'closed'" (closed)="confirmCancel=null">
+    <hlm-alert-dialog-content *hlmAlertDialogPortal>
+      <hlm-alert-dialog-header>
+        <h2 hlmAlertDialogTitle>Отменить запись?</h2>
+        <p hlmAlertDialogDescription>
+          @if(confirmCancel){{{confirmCancel.name}}, {{when(confirmCancel)}} в {{time(confirmCancel.starts_at)}} —
+          {{confirmCancel.service}}. }Клиент получит уведомление об отмене, время снова станет свободным.
+        </p>
+      </hlm-alert-dialog-header>
+      <hlm-alert-dialog-footer>
+        <button hlmAlertDialogCancel>Не отменять</button>
+        <button hlmAlertDialogAction variant="destructive" (click)="confirmCancelBooking()">Отменить запись</button>
+      </hlm-alert-dialog-footer>
+    </hlm-alert-dialog-content>
+  </hlm-alert-dialog>
 </div>
 }

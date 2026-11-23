@@ -283,6 +283,8 @@ func (a *app) routes() http.Handler {
 	m.Handle("GET /api/admin/catalog", a.auth(http.HandlerFunc(a.catalog)))
 	m.Handle("GET /api/admin/slots", a.auth(http.HandlerFunc(a.slots)))
 	m.Handle("POST /api/admin/bookings", a.auth(http.HandlerFunc(a.book)))
+	m.Handle("GET /api/admin/bookings", a.auth(http.HandlerFunc(a.searchBookings)))
+	m.Handle("GET /api/admin/clients", a.auth(http.HandlerFunc(a.searchClients)))
 	m.Handle("GET /api/admin/manage/{token}", a.auth(http.HandlerFunc(a.manage)))
 	m.Handle("POST /api/admin/manage/{token}/cancel", a.auth(http.HandlerFunc(a.cancel)))
 	m.Handle("POST /api/admin/manage/{token}/reschedule", a.auth(http.HandlerFunc(a.reschedule)))

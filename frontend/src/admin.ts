@@ -8,18 +8,53 @@ import {
   inject,
 } from "@angular/core";
 import { FormsModule } from "@angular/forms";
+import { NgIcon, provideIcons } from "@ng-icons/core";
+import {
+  lucideCalendarDays,
+  lucideMessageCircle,
+  lucidePhone,
+  lucideRotateCcw,
+  lucideSearch,
+  lucideUserRound,
+  lucideX,
+} from "@ng-icons/lucide";
+import { HlmAlertImports } from "@spartan-ng/helm/alert";
+import { HlmAlertDialogImports } from "@spartan-ng/helm/alert-dialog";
+import { HlmBadgeImports } from "@spartan-ng/helm/badge";
+import { HlmButtonImports } from "@spartan-ng/helm/button";
+import { HlmCheckboxImports } from "@spartan-ng/helm/checkbox";
+import { HlmInputImports } from "@spartan-ng/helm/input";
+import { HlmInputGroupImports } from "@spartan-ng/helm/input-group";
+import { HlmLabelImports } from "@spartan-ng/helm/label";
+import { HlmSwitchImports } from "@spartan-ng/helm/switch";
+import { HlmTableImports } from "@spartan-ng/helm/table";
+import { HlmTextareaImports } from "@spartan-ng/helm/textarea";
+import { AppSelect, SelectOption } from "./admin-select";
 import {
   api,
+  Booking,
   Catalog,
+  Client,
   Dashboard,
+  Page,
   Service,
   Extra,
   Specialist,
+  dateLabel,
   salonDate,
   timeLabel,
   toInstant,
   statuses,
 } from "./api";
+
+type Period = "day" | "today" | "week" | "month" | "past" | "all" | "custom";
+/** Status colors shared by badges and select dots. */
+export const statusTone: Record<string, string> = {
+  confirmed: "var(--color-brand)",
+  completed: "var(--color-success)",
+  cancelled: "var(--color-neutral-ink)",
+  no_show: "var(--color-danger)",
+};
 
 type Edit = {
   id: number;
@@ -49,7 +84,33 @@ interface BotInfo {
 @Component({
   selector: "app-admin",
   standalone: true,
-  imports: [FormsModule],
+  imports: [
+    FormsModule,
+    NgIcon,
+    AppSelect,
+    HlmAlertImports,
+    HlmAlertDialogImports,
+    HlmBadgeImports,
+    HlmButtonImports,
+    HlmCheckboxImports,
+    HlmInputImports,
+    HlmInputGroupImports,
+    HlmLabelImports,
+    HlmSwitchImports,
+    HlmTableImports,
+    HlmTextareaImports,
+  ],
+  providers: [
+    provideIcons({
+      lucideCalendarDays,
+      lucideMessageCircle,
+      lucidePhone,
+      lucideRotateCcw,
+      lucideSearch,
+      lucideUserRound,
+      lucideX,
+    }),
+  ],
   templateUrl: "./admin.html",
 })
 export class AdminComponent {
@@ -78,8 +139,65 @@ export class AdminComponent {
   botDraft: BotSettings | null = null;
   botDirty = false;
   statuses = statuses;
-  filter = "";
-  search = "";
+  statusTone = statusTone;
+  // Bookings search: any period, text, status, specialist, service, client.
+  bq = {
+    q: "",
+    period: "week" as Period,
+    from: "",
+    to: "",
+    status: "" as string,
+    specialist: 0,
+    service: 0,
+    sort: "asc",
+    phone: "",
+    phoneLabel: "",
+  };
+  bookingPage: Page<Booking> = { items: [], total: 0, revenue: 0 };
+  bookingsLoading = false;
+  // Clients: grouped by phone with segments.
+  cq = { q: "", segment: "all", sort: "recent" };
+  clientPage: Page<Client> = { items: [], total: 0 };
+  clientsLoading = false;
+  private searchTimer?: ReturnType<typeof setTimeout>;
+  private bookingSeq = 0;
+  private clientSeq = 0;
+  // Confirmation dialog replacing window.confirm.
+  confirmCancel: Booking | null = null;
+  readonly periodOptions: SelectOption[] = [
+    { value: "day", label: "Выбранный день", hint: "Дата из шапки страницы" },
+    { value: "today", label: "Сегодня" },
+    { value: "week", label: "Ближайшие 7 дней" },
+    { value: "month", label: "Ближайшие 30 дней" },
+    { value: "past", label: "Прошедшие 30 дней" },
+    { value: "all", label: "За всё время" },
+    { value: "custom", label: "Свой период", hint: "Укажите даты начала и конца" },
+  ];
+  readonly statusOptions: SelectOption[] = [
+    { value: "", label: "Все статусы" },
+    { value: "confirmed", label: "Подтверждены", dot: statusTone["confirmed"] },
+    { value: "completed", label: "Завершены", dot: statusTone["completed"] },
+    { value: "cancelled", label: "Отменены", dot: statusTone["cancelled"] },
+    { value: "no_show", label: "Неявки", dot: statusTone["no_show"] },
+  ];
+  readonly sortOptions: SelectOption[] = [
+    { value: "asc", label: "Сначала ранние" },
+    { value: "desc", label: "Сначала поздние" },
+  ];
+  readonly segmentOptions: SelectOption[] = [
+    { value: "all", label: "Все клиенты" },
+    { value: "upcoming", label: "С предстоящей записью", hint: "Есть подтверждённый визит впереди" },
+    { value: "regular", label: "Постоянные", hint: "Три и больше завершённых визита" },
+    { value: "telegram", label: "В Telegram", hint: "Получают уведомления от бота" },
+    { value: "no_show", label: "Были неявки", hint: "Хотя бы один пропущенный визит" },
+    { value: "lapsed", label: "Давно не были", hint: "Больше 60 дней без визита и без записи" },
+  ];
+  readonly clientSortOptions: SelectOption[] = [
+    { value: "recent", label: "Недавние" },
+    { value: "visits", label: "Больше визитов" },
+    { value: "spent", label: "Больше потратили" },
+    { value: "name", label: "По имени" },
+  ];
   shiftMaster = 0;
   shiftStart = "09:00";
   shiftEnd = "18:00";
@@ -99,6 +217,13 @@ export class AdminComponent {
       group: "Работа студии",
       icon: "M8 3h8v4H8z M8 5H5v16h14V5h-3 M8 12h8 M8 16h5",
       description: "Визиты, контакты гостей и статусы сеансов",
+    },
+    {
+      id: "clients",
+      label: "Клиенты",
+      group: "",
+      icon: "M16 19v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1 M9 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6 M22 19v-1a4 4 0 0 0-3-3.9 M16 4.1a3 3 0 0 1 0 5.8",
+      description: "Гости студии: история визитов, контакты и сегменты",
     },
     {
       id: "schedule",
@@ -143,6 +268,7 @@ export class AdminComponent {
     this.editor = null;
     this.error = "";
     this.notice = "";
+    this.loadTab();
     this.cd.markForCheck();
   };
   ngOnInit() {
@@ -176,12 +302,156 @@ export class AdminComponent {
     this.error = "";
     this.notice = "";
     if (location.hash !== "#" + id) location.hash = id;
+    this.loadTab();
+  }
+  /** Lists that live outside the daily dashboard load when their tab opens. */
+  private loadTab() {
+    if (!this.logged) return;
+    if (this.tab === "bookings") void this.loadBookings();
+    if (this.tab === "clients") void this.loadClients();
   }
   get page() {
     return this.menu.find((m) => m.id === this.tab)!;
   }
   get dateSection() {
-    return ["overview", "bookings", "schedule"].includes(this.tab);
+    return (
+      ["overview", "schedule"].includes(this.tab) ||
+      (this.tab === "bookings" && this.bq.period === "day")
+    );
+  }
+  get specialistOptions(): SelectOption[] {
+    return [
+      { value: 0, label: "Все специалисты" },
+      ...(this.data?.catalog.specialists || []).map((s) => ({
+        value: s.id,
+        label: s.name,
+        hint: s.active ? undefined : "Неактивен",
+      })),
+    ];
+  }
+  get serviceOptions(): SelectOption[] {
+    return [
+      { value: 0, label: "Все услуги" },
+      ...(this.data?.catalog.services || []).map((s) => ({
+        value: s.id,
+        label: s.name,
+        hint: s.active ? undefined : "Скрыта",
+      })),
+    ];
+  }
+  get shiftMasterOptions(): SelectOption[] {
+    return (this.data?.catalog.specialists || []).map((s) => ({
+      value: s.id,
+      label: s.name,
+      hint: s.active ? undefined : "Неактивен — запись к нему закрыта",
+    }));
+  }
+  /** Number of narrowing filters, for the reset button. */
+  get activeBookingFilters() {
+    const b = this.bq;
+    return [b.q.trim(), b.status, b.specialist, b.service, b.phone, b.period !== "week"].filter(Boolean).length;
+  }
+  get activeClientFilters() {
+    return [this.cq.q.trim(), this.cq.segment !== "all", this.cq.sort !== "recent"].filter(Boolean).length;
+  }
+  /** Salon-local date range for the selected period; empty bounds mean open-ended. */
+  private bookingRange(): { from: string; to: string } {
+    const tz = this.catalog.timezone;
+    switch (this.bq.period) {
+      case "day":
+        return { from: this.date, to: this.date };
+      case "today":
+        return { from: salonDate(tz), to: salonDate(tz) };
+      case "week":
+        return { from: salonDate(tz), to: salonDate(tz, 6) };
+      case "month":
+        return { from: salonDate(tz), to: salonDate(tz, 29) };
+      case "past":
+        return { from: salonDate(tz, -30), to: salonDate(tz, -1) };
+      case "custom":
+        return { from: this.bq.from, to: this.bq.to };
+      default:
+        return { from: "", to: "" };
+    }
+  }
+  /** Debounced reload for text fields; selects reload immediately. */
+  searchSoon(kind: "bookings" | "clients") {
+    clearTimeout(this.searchTimer);
+    this.searchTimer = setTimeout(() => void (kind === "bookings" ? this.loadBookings() : this.loadClients()), 300);
+  }
+  async loadBookings(more = false) {
+    const seq = ++this.bookingSeq;
+    const { from, to } = this.bookingRange();
+    if (this.bq.period === "custom" && from && to && from > to) {
+      this.error = "Дата начала периода позже даты окончания";
+      return;
+    }
+    const p = new URLSearchParams();
+    const b = this.bq;
+    if (b.q.trim()) p.set("q", b.q.trim());
+    if (b.status) p.set("status", b.status);
+    if (b.specialist) p.set("specialist_id", String(b.specialist));
+    if (b.service) p.set("service_id", String(b.service));
+    if (b.phone) p.set("phone", b.phone);
+    if (from) p.set("from", from);
+    if (to) p.set("to", to);
+    p.set("sort", b.sort);
+    p.set("limit", "50");
+    p.set("offset", String(more ? this.bookingPage.items.length : 0));
+    this.bookingsLoading = true;
+    this.cd.markForCheck();
+    try {
+      const page = await api<Page<Booking>>("/admin/bookings?" + p);
+      if (seq !== this.bookingSeq) return; // a newer search already started
+      this.bookingPage = more ? { ...page, items: [...this.bookingPage.items, ...page.items] } : page;
+    } catch (e) {
+      if (seq === this.bookingSeq) this.error = this.message(e);
+    } finally {
+      if (seq === this.bookingSeq) this.bookingsLoading = false;
+      this.cd.markForCheck();
+    }
+  }
+  async loadClients(more = false) {
+    const seq = ++this.clientSeq;
+    const p = new URLSearchParams({ segment: this.cq.segment, sort: this.cq.sort, limit: "50", offset: String(more ? this.clientPage.items.length : 0) });
+    if (this.cq.q.trim()) p.set("q", this.cq.q.trim());
+    this.clientsLoading = true;
+    this.cd.markForCheck();
+    try {
+      const page = await api<Page<Client>>("/admin/clients?" + p);
+      if (seq !== this.clientSeq) return;
+      this.clientPage = more ? { ...page, items: [...this.clientPage.items, ...page.items] } : page;
+    } catch (e) {
+      if (seq === this.clientSeq) this.error = this.message(e);
+    } finally {
+      if (seq === this.clientSeq) this.clientsLoading = false;
+      this.cd.markForCheck();
+    }
+  }
+  resetBookingFilters() {
+    this.bq = { ...this.bq, q: "", period: "week", from: "", to: "", status: "", specialist: 0, service: 0, sort: "asc", phone: "", phoneLabel: "" };
+    void this.loadBookings();
+  }
+  resetClientFilters() {
+    this.cq = { q: "", segment: "all", sort: "recent" };
+    void this.loadClients();
+  }
+  /** Opens the bookings list narrowed to one client. */
+  showClientBookings(c: { phone: string; name: string }) {
+    this.bq = { ...this.bq, q: "", status: "", specialist: 0, service: 0, period: "all", sort: "desc", phone: c.phone.replace(/\D/g, ""), phoneLabel: c.name };
+    this.select("bookings");
+  }
+  clearClientFilter() {
+    this.bq = { ...this.bq, phone: "", phoneLabel: "" };
+    void this.loadBookings();
+  }
+  when(b: Booking) {
+    return dateLabel(b.starts_at, this.catalog.timezone);
+  }
+  day(v: string | null) {
+    return v
+      ? new Intl.DateTimeFormat("ru", { timeZone: this.catalog.timezone, day: "numeric", month: "short", year: "numeric" }).format(new Date(v))
+      : "—";
   }
   get activeServices() {
     return this.data?.catalog.services.filter((s) => s.active).length || 0;
@@ -201,20 +471,6 @@ export class AdminComponent {
       []
     );
   }
-  get filteredBookings() {
-    const q = this.search.trim().toLowerCase();
-    return (
-      this.data?.bookings.filter(
-        (b) =>
-          (!this.filter || b.status === this.filter) &&
-          (!q ||
-            [b.name, b.phone, b.service, b.specialist]
-              .join(" ")
-              .toLowerCase()
-              .includes(q)),
-      ) || []
-    );
-  }
   get scheduledHours() {
     return (
       this.data?.shifts.reduce(
@@ -229,6 +485,7 @@ export class AdminComponent {
       await this.reload();
       this.logged = true;
       await this.loadBot();
+      this.loadTab();
     } catch (e) {
       if (this.logged) this.error = this.message(e);
     } finally {
@@ -291,7 +548,10 @@ export class AdminComponent {
     if (!this.botDirty) this.botDraft = { ...this.bot.settings };
   }
   refresh() {
-    void this.run(() => this.reload());
+    void this.run(async () => {
+      await this.reload();
+      this.loadTab();
+    });
   }
   login() {
     void this.run(async () => {
@@ -299,6 +559,7 @@ export class AdminComponent {
       this.password = "";
       this.logged = true;
       await Promise.all([this.reload(), this.loadBot()]);
+      this.loadTab();
     });
   }
   logout() {
@@ -338,16 +599,20 @@ export class AdminComponent {
     });
   }
   status(id: number, status: string) {
-    if (
-      status === "cancelled" &&
-      !window.confirm("Отменить запись и уведомить клиента?")
-    )
-      return;
     void this.run(async () => {
       await api("/admin/bookings/" + id + "/status", "POST", { status });
       await this.reload();
-      this.notice = "Статус записи обновлён";
+      if (this.tab === "bookings") await this.loadBookings();
+      this.notice = status === "cancelled" ? "Запись отменена, клиент получит уведомление" : "Статус записи обновлён";
     });
+  }
+  askCancel(b: Booking) {
+    this.confirmCancel = b;
+  }
+  confirmCancelBooking() {
+    const b = this.confirmCancel;
+    this.confirmCancel = null;
+    if (b) this.status(b.id, "cancelled");
   }
   edit(kind: string, item?: Service | Extra | Specialist) {
     this.editKind = kind;
